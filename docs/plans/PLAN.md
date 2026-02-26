@@ -7,17 +7,19 @@ Scheduled workflow execution for vault maintenance and agent-driven tasks on mac
 ```
 workflows.toml          defines workflows, schedules, metadata
        |
-    wf CLI              reads toml, generates plists, manages launchd
+    wf CLI              reads toml, validates, generates plists, manages launchd
        |
    launchd              native macOS scheduler, fires on StartCalendarInterval
        |
-  scripts/              executable .ts scripts (run via bun)
+  type=agent            wf reads prompt, spawns opencode run
+  type=script           wf spawns bun run scripts/<name>.ts
        |
-  prompts/              agent instruction markdowns (read by scripts)
+  prompts/              agent instruction markdowns (read by wf directly)
+  scripts/              executable .ts scripts (only for script-type workflows)
 ```
 
 ### Design principles (from Alfred)
-- **Shell/scheduler handles control flow, agent handles reasoning.** Scripts dispatch; prompts reason.
+- **Shell/scheduler handles control flow, agent handles reasoning.** The CLI dispatches; prompts reason.
 - **Scope enforcement.** Each workflow has defined permissions (create/edit/delete per vault).
 - **Vault is source of truth.** State files are bookkeeping only.
 - **Durable logs.** Every run logs to `logs/`. Human-readable reports go into the vault.
@@ -35,27 +37,40 @@ workflows.toml          defines workflows, schedules, metadata
   workflows.toml                      # all workflow definitions
   docs/plans/PLAN.md                  # this file
   prompts/
-    vault-inbox-processing.md         # agent instructions (read by scripts)
+    vault-inbox-processing.md         # agent instructions (read by wf directly)
     vault-grooming.md
     vault-knowledge-distillation.md
   scripts/
-    vault-inbox-processing.ts         # reads prompt, calls opencode run
-    vault-grooming.ts
-    vault-knowledge-distillation.ts
-    vault-embeddings.ts               # calls qmd update + embed
+    vault-embeddings.ts               # calls qmd update + embed (script-type only)
   src/
-    wf.ts                             # CLI source (TypeScript/Bun)
+    wf.ts                             # CLI dispatcher + commands
+    types.ts                          # all interfaces (Workflow, Config, RunState, etc.)
+    validate.ts                       # TOML config validation
+    state.ts                          # run state read/write + formatting helpers
   bin/
     wf                                # compiled binary (gitignored)
   plists/                             # generated launchd plists (gitignored)
   logs/                               # runtime logs (gitignored)
-  state/                              # JSON state files (gitignored)
+  state/                              # JSON run state per workflow (gitignored)
   .gitignore
 ```
 
+### Workflow types
+
+Two types, declared in `workflows.toml` via the `type` field:
+
+| Type | TOML field | Execution |
+|------|-----------|-----------|
+| `agent` | `prompt = "prompts/<name>.md"` | `wf` reads prompt file, spawns `opencode run <prompt-text>` |
+| `script` | `script = "scripts/<name>.ts"` | `wf` spawns `bun run <script-path>` |
+
+Validation enforces mutual exclusivity: agent-type requires `prompt` (rejects `script`), script-type requires `script` (rejects `prompt`).
+
+Agent-type workflows have no per-workflow script file. The CLI handles prompt loading and opencode dispatch directly, eliminating duplication.
+
 ### Separation: prompts/ vs scripts/
 - `prompts/` — Pure markdown agent instructions. Clean syntax highlighting, no escaping, readable standalone.
-- `scripts/` — Executable `.ts` files. Read a prompt, call `opencode run`, handle exit codes.
+- `scripts/` — Executable `.ts` files for non-agent workflows only (e.g. vault-embeddings).
 - Backtick safety: prompts contain inline code, obsidian CLI commands, markdown formatting. Embedding in TS template literals would require escaping. Keeping them as `.md` avoids this.
 
 ## Prerequisites
@@ -77,25 +92,53 @@ qmd update
 qmd embed
 ```
 
-### Node version note
-QMD uses `better-sqlite3` with native addons. Must run under Node 22 LTS (MODULE_VERSION 127). nvm default set to 22, `.zshrc` eager-loads nvm.
+### Node version resolution
+QMD uses `better-sqlite3` with native addons. Must run under Node >= 22 (MODULE_VERSION 127).
 
-**Gotcha**: launchd jobs run in a non-interactive shell where nvm is NOT loaded. The `vault-embeddings.ts` script sources nvm explicitly before calling qmd.
+The CLI resolves the nvm node version dynamically at plist generation time (`wf install`):
+1. Reads `~/.nvm/alias/default` and follows the alias chain (max 5 hops)
+2. Matches against installed versions in `~/.nvm/versions/node/`
+3. Falls back to latest installed version with a warning if resolution fails
+
+This means after `nvm install` of a new node version, run `wf install` to regenerate plists with the updated path.
+
+**Gotcha**: launchd jobs run in a non-interactive shell where nvm is NOT loaded. The `vault-embeddings.ts` script sources nvm explicitly before calling qmd. The plist also includes the resolved nvm node bin in PATH.
 
 ## Execution flow
 
 ```
 launchd fires → wf run <name>
-  → reads workflows.toml
-  → resolves script path
-  → exec: bun run scripts/<name>.ts
-    → (agent scripts) read prompts/<name>.md, spawn opencode run
-    → (embeddings) source nvm, spawn qmd update + embed
+  → reads + validates workflows.toml
+  → checks workflow type
+  → type=agent:
+      read prompts/<name>.md
+      spawn: opencode run <prompt-text>
+  → type=script:
+      spawn: bun run scripts/<name>.ts
   → capture exit code
+  → write state to state/<name>.json
   → log to logs/<name>.out.log / .err.log
 ```
 
-All scripts are `.ts`, all dispatched via `bun run`. No runner field in TOML — uniform execution model.
+## State tracking
+
+Each `wf run` writes run state to `state/<name>.json`:
+
+```json
+{
+  "lastRun": "2026-02-26T08:00:12Z",
+  "lastExitCode": 0,
+  "lastDurationMs": 45230,
+  "consecutiveFailures": 0,
+  "history": [
+    { "startedAt": "2026-02-26T08:00:12Z", "exitCode": 0, "durationMs": 45230 }
+  ]
+}
+```
+
+- History capped at 10 entries
+- `consecutiveFailures` increments on non-zero exit, resets on success
+- `wf status` reads state files to show last run time, duration, and failure streaks
 
 ## Workflows
 
@@ -103,7 +146,7 @@ All scripts are `.ts`, all dispatched via `bun run`. No runner field in TOML —
 
 | Field | Value |
 |-------|-------|
-| Script | `scripts/vault-inbox-processing.ts` |
+| Type | `agent` |
 | Prompt | `prompts/vault-inbox-processing.md` |
 | Schedule | Weekdays 8am |
 | Scope | Create + edit in Knowledge vault. Deletes processed inbox originals. |
@@ -115,7 +158,7 @@ Based on `/obs-triage-inbox` command. Lists inbox, fetches URLs, checks duplicat
 
 | Field | Value |
 |-------|-------|
-| Script | `scripts/vault-grooming.ts` |
+| Type | `agent` |
 | Prompt | `prompts/vault-grooming.md` |
 | Schedule | Sundays 3am |
 | Scope | Knowledge: edit + report (no delete). Memory: edit + delete. |
@@ -127,7 +170,7 @@ Scans both vaults for broken wikilinks, invalid frontmatter, orphans, stubs. Wri
 
 | Field | Value |
 |-------|-------|
-| Script | `scripts/vault-knowledge-distillation.ts` |
+| Type | `agent` |
 | Prompt | `prompts/vault-knowledge-distillation.md` |
 | Schedule | Sundays 10pm |
 | Scope | Create + edit in Memory vault |
@@ -139,6 +182,7 @@ Reads all Memory vault notes, distills into `MEMORY.md` at vault root. Telegraph
 
 | Field | Value |
 |-------|-------|
+| Type | `script` |
 | Script | `scripts/vault-embeddings.ts` |
 | Schedule | Daily 4am |
 | Scope | Read-only (QMD indexes but never modifies source files) |
@@ -155,19 +199,22 @@ Agent-driven workflow using QMD search to identify semantic clusters and write w
 
 | Command | Description |
 |---------|-------------|
-| `wf list` | Show all defined workflows (name, schedule, enabled) |
+| `wf list` | Config view: all workflows with type, schedule, enabled/disabled, description |
+| `wf status` | Runtime view: loaded state, last run time, exit code, duration, failure streaks |
 | `wf install` | Generate plists → copy to `~/Library/LaunchAgents/` → `launchctl bootstrap` |
-| `wf uninstall` | `launchctl bootout` + remove plists |
-| `wf run <name>` | Execute workflow immediately (bypass schedule) |
-| `wf status` | Loaded state in launchd, last exit code, schedule |
+| `wf uninstall` | `launchctl bootout` + remove plists, per-workflow reporting |
+| `wf run <name>` | Execute workflow immediately (bypass schedule), writes state |
 | `wf logs <name>` | Show stdout+stderr logs for a workflow |
 | `wf enable <name>` | Load a single workflow into launchd |
 | `wf disable <name>` | Unload a single workflow from launchd |
 
 ### Implementation
+- **Source layout**: `src/wf.ts` (CLI), `src/types.ts` (interfaces), `src/validate.ts` (config validation), `src/state.ts` (run state).
 - **TOML**: `import { TOML } from "bun"` — built-in parser, zero deps.
+- **Config validation**: Schema-level checks after parse (type enum, field exclusivity, schedule ranges).
 - **Plist XML**: Template function handling weekday array expansion.
-- **Environment in plists**: PATH (nvm node 22 + bun + homebrew + system), HOME, NVM_DIR.
+- **Environment in plists**: PATH (dynamically resolved nvm node + bun + homebrew + system), HOME, NVM_DIR.
+- **UID**: Resolved via `id -u` subprocess, with env override.
 - **No npm deps** — pure Bun APIs.
 - **Compiled binary path**: Detects bundled vs dev mode for correct ROOT resolution.
 

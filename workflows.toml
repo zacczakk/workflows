@@ -2,9 +2,12 @@
 label_prefix = "com.zacczakk"
 log_dir = "logs"
 plist_dir = "plists"
+state_dir = "state"
+default_timeout = 3600
 
 [workflows.vault-inbox-processing]
-script = "scripts/vault-inbox-processing.ts"
+type = "agent"
+prompt = "prompts/vault-inbox-processing.md"
 description = "Process Knowledge vault inbox into enriched backlog notes"
 enabled = true
 
@@ -14,7 +17,8 @@ Minute = 0
 Weekday = [1, 2, 3, 4, 5]
 
 [workflows.vault-grooming]
-script = "scripts/vault-grooming.ts"
+type = "agent"
+prompt = "prompts/vault-grooming.md"
 description = "Sweep both vaults for broken links, orphans, stale notes"
 enabled = true
 
@@ -24,7 +28,8 @@ Minute = 0
 Weekday = 0
 
 [workflows.vault-knowledge-distillation]
-script = "scripts/vault-knowledge-distillation.ts"
+type = "agent"
+prompt = "prompts/vault-knowledge-distillation.md"
 description = "Distill Memory vault into condensed MEMORY.md"
 enabled = true
 
@@ -34,9 +39,11 @@ Minute = 0
 Weekday = 0
 
 [workflows.vault-embeddings]
+type = "script"
 script = "scripts/vault-embeddings.ts"
 description = "Re-index Memory vault in QMD for hybrid search"
 enabled = true
+timeout = 300
 
 [workflows.vault-embeddings.schedule]
 Hour = 4
