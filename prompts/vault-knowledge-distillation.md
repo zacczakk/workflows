@@ -6,6 +6,8 @@ Distill the Memory vault into two files: `MEMORY.md` (system/project context) an
 
 An agent reads `MEMORY.md` and `USER.md` first, then searches deeper via QMD or the obsidian CLI. The goal is: after reading these two files, the agent immediately knows who the user is, what they're working on, how things are structured, and where to find details.
 
+**Critical: `MEMORY.md` is injected into every agent session at startup.** Every token in this file costs context window budget on every single interaction. Be ruthlessly concise. If a line doesn't change how an agent behaves, cut it.
+
 ## Context
 
 Read `~/Vaults/AGENTS.md` for current vault conventions before starting.
