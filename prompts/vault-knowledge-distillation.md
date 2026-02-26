@@ -18,7 +18,9 @@ Read `~/Vaults/AGENTS.md` for current vault conventions before starting.
 
 **Skip these files:**
 - `MEMORY.md` itself (self-referential)
-- `USER.md` itself
+- `USER.md` (agent-injected, user-curated)
+- `IDENTITY.md` (agent persona config, auto-injected)
+- `SOUL.md` (agent persona config, auto-injected)
 - `system/grooming-reports/*` (operational logs, not knowledge)
 
 ### 2. Read notes efficiently
