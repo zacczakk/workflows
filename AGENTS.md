@@ -10,7 +10,8 @@ Scheduled workflow execution for vault maintenance and agent-driven tasks. launc
 
 ```
 workflows.toml          workflow definitions + schedules
-scripts/                executable prompts (.md) and shell scripts (.sh)
+prompts/                agent instruction markdowns (read by scripts)
+scripts/                executable .ts scripts (all run via bun)
 src/wf.ts               CLI source (Bun/TypeScript)
 bin/wf                  compiled binary (gitignored)
 plists/                 generated launchd plists (gitignored)
@@ -18,17 +19,20 @@ logs/                   runtime logs (gitignored)
 state/                  JSON state files (gitignored)
 ```
 
-## Runners
+## Execution
 
-- `opencode` — `opencode run "$(cat script.md)"`. Full tool access.
-- `shell` — `bash script.sh`. For non-agent tasks.
+All scripts are `.ts`, dispatched via `bun run`. Agent scripts read their prompt from `prompts/`, then call `opencode run`.
+
+```
+launchd → wf run <name> → bun run scripts/<name>.ts → opencode run / qmd
+```
 
 ## Key tools on PATH
 
 - `opencode` — agent runner (headless via `opencode run`)
 - `qmd` — hybrid markdown search (requires Node 22 via nvm)
 - `obsidian` — vault CRUD
-- `bun` — build wf.ts
+- `bun` — build wf.ts, run all scripts
 
 ## Conventions
 
@@ -36,5 +40,6 @@ state/                  JSON state files (gitignored)
 - Files < 500 LOC.
 - No secrets in repo. Use `.env` for local values.
 - launchd plists call `wf run <name>`, not scripts directly.
-- Agent prompts in scripts/ are self-contained — no dependency on interactive context.
-- Shell scripts source nvm explicitly for Node 22 compatibility.
+- Agent prompts in `prompts/` are self-contained — no dependency on interactive context.
+- Scripts source nvm explicitly for Node 22 compatibility (launchd has no shell env).
+- Build: `bun build src/wf.ts --compile --outfile bin/wf`.
