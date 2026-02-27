@@ -48,6 +48,7 @@ wf disable <name>    deactivate a workflow
 - [Bun](https://bun.sh) — runtime + compiler
 - [OpenCode](https://opencode.ai) — headless agent execution (`opencode run`)
 - [Obsidian CLI](https://github.com/zacczakk/obsidian) — vault CRUD (used by agent prompts)
+- [qmd](https://github.com/tobi/qmd) — hybrid markdown search + embeddings (used by `vault-embeddings`, optional for other workflows)
 - macOS with launchd
 
 ### Build & install
