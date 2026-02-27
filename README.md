@@ -45,11 +45,13 @@ wf disable <name>    deactivate a workflow
 
 ### Prerequisites
 
+- macOS with launchd
 - [Bun](https://bun.sh) — runtime + compiler
+- [nvm](https://github.com/nvm-sh/nvm) with Node >= 22 — required for plist PATH resolution and qmd
 - [OpenCode](https://opencode.ai) — headless agent execution (`opencode run`)
 - [Obsidian CLI](https://github.com/zacczakk/obsidian) — vault CRUD (used by agent prompts)
-- [qmd](https://github.com/tobi/qmd) — hybrid markdown search + embeddings (used by `vault-embeddings`, optional for other workflows)
-- macOS with launchd
+- [qmd](https://github.com/tobi/qmd) — hybrid markdown search + embeddings (required for `vault-embeddings`, optional for agent workflows)
+- Two Obsidian vaults at `~/Vaults/Knowledge/` and `~/Vaults/Memory/`
 
 ### Build & install
 
@@ -59,6 +61,9 @@ bun build src/wf.ts --compile --outfile bin/wf
 
 # add to PATH
 export PATH="$PWD/bin:$PATH"
+
+# one-time: register vault with qmd for embeddings
+qmd collection add ~/Vaults/Memory --name memory
 
 # register with launchd
 wf install
