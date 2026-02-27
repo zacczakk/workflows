@@ -1,11 +1,11 @@
 // ── Schedule ────────────────────────────────────────────────────────
 
 export interface Schedule {
-  Hour?: number;
-  Minute?: number;
-  Month?: number;
-  Day?: number;
-  Weekday?: number | number[];
+  hour?: number;
+  minute?: number;
+  month?: number;
+  day?: number;
+  weekday?: number | number[];
 }
 
 // ── Workflow ────────────────────────────────────────────────────────

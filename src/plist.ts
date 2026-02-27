@@ -75,16 +75,17 @@ function escapeXml(s: string): string {
     .replace(/"/g, "&quot;");
 }
 
+/** Map our lowercase schedule keys to launchd PascalCase StartCalendarInterval keys */
 function expandSchedule(
   sched: Config["workflows"][string]["schedule"],
 ): Record<string, number>[] {
-  const weekdays = sched.Weekday;
   const base: Record<string, number> = {};
-  if (sched.Hour !== undefined) base.Hour = sched.Hour;
-  if (sched.Minute !== undefined) base.Minute = sched.Minute;
-  if (sched.Month !== undefined) base.Month = sched.Month;
-  if (sched.Day !== undefined) base.Day = sched.Day;
+  if (sched.hour !== undefined) base.Hour = sched.hour;
+  if (sched.minute !== undefined) base.Minute = sched.minute;
+  if (sched.month !== undefined) base.Month = sched.month;
+  if (sched.day !== undefined) base.Day = sched.day;
 
+  const weekdays = sched.weekday;
   if (weekdays === undefined) return [base];
   if (typeof weekdays === "number") return [{ ...base, Weekday: weekdays }];
   return weekdays.map((d) => ({ ...base, Weekday: d }));

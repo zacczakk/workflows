@@ -5,46 +5,42 @@ plist_dir = "plists"
 state_dir = "state"
 default_timeout = 3600
 
+[workflows.vault-embeddings]
+type = "script"
+script = "scripts/vault-embeddings.ts"
+description = "Re-index Memory vault in QMD for hybrid search"
+enabled = true
+timeout = 1800
+schedule = { hour = 2, minute = 0 }
+
 [workflows.vault-inbox-processing]
 type = "agent"
 prompt = "prompts/vault-inbox-processing.md"
 description = "Process Knowledge vault inbox into enriched backlog notes"
 enabled = true
+timeout = 1800
+schedule = { hour = 2, minute = 30 }
 
-[workflows.vault-inbox-processing.schedule]
-Hour = 8
-Minute = 0
-Weekday = [1, 2, 3, 4, 5]
+[workflows.vault-session-processing]
+type = "agent"
+prompt = "prompts/vault-session-processing.md"
+description = "Distill session notes into patterns, tools, and project knowledge"
+enabled = true
+timeout = 1800
+schedule = { hour = 3, minute = 0 }
 
 [workflows.vault-grooming]
 type = "agent"
 prompt = "prompts/vault-grooming.md"
 description = "Sweep both vaults for broken links, orphans, stale notes"
 enabled = true
-
-[workflows.vault-grooming.schedule]
-Hour = 3
-Minute = 0
-Weekday = 0
+timeout = 3600
+schedule = { hour = 3, minute = 30 }
 
 [workflows.vault-knowledge-distillation]
 type = "agent"
 prompt = "prompts/vault-knowledge-distillation.md"
 description = "Distill Memory vault into condensed MEMORY.md"
 enabled = true
-
-[workflows.vault-knowledge-distillation.schedule]
-Hour = 22
-Minute = 0
-Weekday = 0
-
-[workflows.vault-embeddings]
-type = "script"
-script = "scripts/vault-embeddings.ts"
-description = "Re-index Memory vault in QMD for hybrid search"
-enabled = true
-timeout = 300
-
-[workflows.vault-embeddings.schedule]
-Hour = 4
-Minute = 0
+timeout = 3600
+schedule = { hour = 4, minute = 30 }

@@ -42,31 +42,31 @@ function validateSchedule(raw: unknown, path: string) {
     throw new ConfigError(path, "schedule must be an object");
   }
   const s = raw as Record<string, unknown>;
-  const hour = intInRange(s, "Hour", 0, 23, path);
-  const minute = intInRange(s, "Minute", 0, 59, path);
-  const month = intInRange(s, "Month", 1, 12, path);
-  const day = intInRange(s, "Day", 1, 31, path);
+  const hour = intInRange(s, "hour", 0, 23, path);
+  const minute = intInRange(s, "minute", 0, 59, path);
+  const month = intInRange(s, "month", 1, 12, path);
+  const day = intInRange(s, "day", 1, 31, path);
 
   let weekday: number | number[] | undefined;
-  if (s.Weekday !== undefined) {
-    if (typeof s.Weekday === "number") {
-      if (!Number.isInteger(s.Weekday) || s.Weekday < 0 || s.Weekday > 6) {
-        throw new ConfigError(path, "'Weekday' must be 0-6");
+  if (s.weekday !== undefined) {
+    if (typeof s.weekday === "number") {
+      if (!Number.isInteger(s.weekday) || s.weekday < 0 || s.weekday > 6) {
+        throw new ConfigError(path, "'weekday' must be 0-6");
       }
-      weekday = s.Weekday;
-    } else if (Array.isArray(s.Weekday)) {
-      for (const d of s.Weekday) {
+      weekday = s.weekday;
+    } else if (Array.isArray(s.weekday)) {
+      for (const d of s.weekday) {
         if (typeof d !== "number" || !Number.isInteger(d) || d < 0 || d > 6) {
-          throw new ConfigError(path, "'Weekday' array values must be integers 0-6");
+          throw new ConfigError(path, "'weekday' array values must be integers 0-6");
         }
       }
-      weekday = s.Weekday as number[];
+      weekday = s.weekday as number[];
     } else {
-      throw new ConfigError(path, "'Weekday' must be a number or array of numbers");
+      throw new ConfigError(path, "'weekday' must be a number or array of numbers");
     }
   }
 
-  return { Hour: hour, Minute: minute, Month: month, Day: day, Weekday: weekday };
+  return { hour, minute, month, day, weekday };
 }
 
 export function validateConfig(parsed: unknown): Config {
