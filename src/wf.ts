@@ -9,7 +9,7 @@ import {
   writeFileSync,
 } from "fs";
 import { homedir } from "os";
-import type { Config, RunEntry } from "./types";
+import type { Config, RunEntry, Workflow } from "./types";
 import { validateConfig } from "./validate";
 import { readState, writeState, relativeTime, formatDuration } from "./state";
 import { generatePlist } from "./plist";
@@ -35,6 +35,21 @@ const LAUNCH_AGENTS = resolve(homedir(), "Library/LaunchAgents");
 const UID =
   process.env.UID ??
   Bun.spawnSync(["id", "-u"], { stdout: "pipe" }).stdout.toString().trim();
+
+// ── launchd helpers ────────────────────────────────────────────────
+
+function loadedLabels(): Set<string> {
+  const result = Bun.spawnSync(["launchctl", "list"], {
+    stdout: "pipe",
+    stderr: "ignore",
+  });
+  const labels = new Set<string>();
+  for (const line of result.stdout.toString().split("\n")) {
+    const parts = line.split("\t");
+    if (parts.length >= 3) labels.add(parts[2]);
+  }
+  return labels;
+}
 
 // ── Config ─────────────────────────────────────────────────────────
 
@@ -96,31 +111,74 @@ function weekdayName(d: number): string {
 function formatSchedule(
   sched: Config["workflows"][string]["schedule"],
 ): string {
-  const time = `${String(sched.Hour ?? 0).padStart(2, "0")}:${String(sched.Minute ?? 0).padStart(2, "0")}`;
-  const wd = sched.Weekday;
+  const time = `${String(sched.hour ?? 0).padStart(2, "0")}:${String(sched.minute ?? 0).padStart(2, "0")}`;
+  const wd = sched.weekday;
   if (wd === undefined) return `daily ${time}`;
   if (typeof wd === "number") return `${weekdayName(wd)} ${time}`;
   return `${wd.map(weekdayName).join(",")} ${time}`;
+}
+
+// ── Sorting ────────────────────────────────────────────────────────
+
+type SortKey = "schedule" | "name";
+const SORT_KEYS: SortKey[] = ["schedule", "name"];
+
+function scheduleMinutes(wf: Workflow): number {
+  return (wf.schedule.hour ?? 0) * 60 + (wf.schedule.minute ?? 0);
+}
+
+function sortEntries(
+  entries: [string, Workflow][],
+  key: SortKey,
+): [string, Workflow][] {
+  return [...entries].sort((a, b) => {
+    switch (key) {
+      case "schedule":
+        return scheduleMinutes(a[1]) - scheduleMinutes(b[1]);
+      case "name":
+        return a[0].localeCompare(b[0]);
+    }
+  });
+}
+
+function parseSortFlag(): SortKey {
+  const idx = process.argv.indexOf("--sort");
+  if (idx === -1) return "schedule";
+  const val = process.argv[idx + 1] as SortKey | undefined;
+  if (!val || !SORT_KEYS.includes(val)) {
+    console.error(
+      `${c.bRed}error${R} --sort must be one of: ${SORT_KEYS.join(", ")}`,
+    );
+    process.exit(1);
+  }
+  return val;
 }
 
 // ── Commands ───────────────────────────────────────────────────────
 
 function cmdList() {
   const cfg = loadConfig();
-  const entries = Object.entries(cfg.workflows);
+  const entries = sortEntries(Object.entries(cfg.workflows), parseSortFlag());
+  const loaded = loadedLabels();
 
   console.log("");
   for (const [name, wf] of entries) {
+    const lbl = label(cfg, name);
+    const registered = loaded.has(lbl);
+
     const enabledTag = wf.enabled
       ? `${c.green}enabled${R}`
       : `${c.dim}disabled${R}`;
+    const registeredTag = registered
+      ? `${c.green}registered${R}`
+      : `${c.red}not registered${R}`;
     const typeTag = wf.type === "agent"
       ? `${c.cyan}agent${R}`
       : `${c.yellow}script${R}`;
     const sched = formatSchedule(wf.schedule);
 
     console.log(`  ${c.bold}${name}${R}`);
-    console.log(`  ${enabledTag}  ${typeTag}  ${c.dim}${sched}${R}`);
+    console.log(`  ${enabledTag}  ${registeredTag}  ${typeTag}  ${c.dim}${sched}${R}`);
     console.log(`  ${c.dim}${wf.description}${R}`);
     console.log("");
   }
@@ -308,28 +366,34 @@ function cmdUninstall() {
 
 function cmdStatus() {
   const cfg = loadConfig();
-  const result = Bun.spawnSync(["launchctl", "list"], {
-    stdout: "pipe",
-    stderr: "ignore",
-  });
-  const output = result.stdout.toString();
+  const loaded = loadedLabels();
   const sd = stateDir(cfg);
+  const entries = sortEntries(Object.entries(cfg.workflows), parseSortFlag());
 
   console.log("");
-  for (const [name, wf] of Object.entries(cfg.workflows)) {
+  for (const [name, wf] of entries) {
     const lbl = label(cfg, name);
-    const isLoaded = output.split("\n").some((l) => l.includes(lbl));
+    const registered = loaded.has(lbl);
 
     const enabledTag = wf.enabled
       ? `${c.green}enabled${R}`
       : `${c.dim}disabled${R}`;
-    const activeTag = isLoaded
+    const activeTag = registered
       ? `${c.green}scheduled${R}`
       : `${c.dim}not scheduled${R}`;
 
     const state = readState(sd, name);
 
+    let warn = "";
+    if (wf.enabled && !registered) {
+      warn = `  ${c.bYellow}⚠ enabled but not registered — run wf install${R}`;
+    } else if (!wf.enabled && registered) {
+      warn = `  ${c.bYellow}⚠ disabled but still registered — run wf uninstall or wf disable ${name}${R}`;
+    }
+
     console.log(`  ${c.bold}${name}${R}  ${enabledTag}  ${activeTag}`);
+
+    if (warn) console.log(warn);
 
     if (state) {
       const ago = relativeTime(state.lastRun);
@@ -469,6 +533,9 @@ const USAGE = `
   ${B}wf uninstall${R}         ${D}remove all from launchd${R}
   ${B}wf enable${R} ${C}<name>${R}      ${D}activate a workflow${R}
   ${B}wf disable${R} ${C}<name>${R}     ${D}deactivate a workflow${R}
+
+  ${D}options${R}
+  ${B}--sort${R} ${C}<key>${R}         ${D}sort list/status (schedule, name) [default: schedule]${R}
 `;
 
 function requireArg(cmd: string): string {
