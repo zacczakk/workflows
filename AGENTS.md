@@ -17,6 +17,7 @@ src/
   types.ts              all interfaces (Workflow, Config, RunState, etc.)
   validate.ts           TOML config validation
   state.ts              run state read/write + formatting helpers
+  plist.ts              nvm resolution + launchd plist generation
 bin/wf                  compiled binary (gitignored)
 plists/                 generated launchd plists (gitignored)
 logs/                   runtime logs (gitignored)

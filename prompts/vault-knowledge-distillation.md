@@ -1,6 +1,6 @@
 # Knowledge Distillation
 
-Distill the Memory vault into two files: `MEMORY.md` (system/project context) and `USER.md` (user preferences/identity). These are the entry points for any agent working in this environment.
+Distill the Memory vault and Knowledge vault docs into two files: `MEMORY.md` (system/project context) and `USER.md` (user preferences/identity). These are the entry points for any agent working in this environment.
 
 ## Purpose
 
@@ -25,7 +25,7 @@ Read `~/Vaults/AGENTS.md` for current vault conventions before starting.
 - `SOUL.md` (agent persona config, auto-injected)
 - `system/grooming-reports/*` (operational logs, not knowledge)
 
-### 2. Read notes efficiently
+### 2. Read Memory vault notes
 
 **At current vault size (< 50 notes):** read every note in full.
 
@@ -35,7 +35,19 @@ Read `~/Vaults/AGENTS.md` for current vault conventions before starting.
 - If `qmd` is on PATH, use `qmd search` to cluster notes by topic instead of reading all sequentially.
 - Prioritize recently updated notes (`updated` or `created` frontmatter fields). Older, unchanged notes can keep their existing MEMORY.md entry if one exists.
 
-### 3. Build MEMORY.md
+### 3. Scan Knowledge vault docs
+
+Read all files in `~/Vaults/Knowledge/06_docs/`. This folder contains personal runbooks, cheat sheets, tool configs, and setup guides — operational knowledge that agents benefit from.
+
+For each doc, extract:
+- Tool names, CLI patterns, setup gotchas, or environment-specific knowledge an agent would need.
+- Skip content that is purely reference (e.g., generic command lists) unless there's a non-obvious gotcha or workflow-specific usage.
+
+These entries go into MEMORY.md alongside Memory vault entries. Use `[[filename]]` wikilinks — Obsidian resolves cross-vault links by filename. Tag the section assignment the same way as Memory notes (most will land in **Tools & Setup**, but route by content).
+
+**Dedup:** If a Memory vault note already covers the same tool/topic, prefer the Memory note (it's closer to agent context). Only add the Knowledge doc entry if it contributes something the Memory note doesn't.
+
+### 4. Build MEMORY.md
 
 For each note, extract:
 - The core insight or operational knowledge (1-2 lines max).
@@ -44,13 +56,13 @@ For each note, extract:
 
 Use the `type` frontmatter field as a hint, but override based on actual content when it makes more sense.
 
-### 4. Build USER.md
+### 5. Build USER.md
 
 If `USER.md` already exists at `~/Vaults/Memory/USER.md`, read it first. Preserve any hand-written content. Only append or update sections that have new information from vault notes — never remove content the user added manually.
 
 If `USER.md` does not exist yet, create it from what can be inferred from vault notes. Keep it minimal — the user will bootstrap and curate it.
 
-### 5. Write files
+### 6. Write files
 
 Write both files directly to the filesystem:
 - `~/Vaults/Memory/MEMORY.md`
@@ -87,13 +99,14 @@ Organize by what an agent needs to know, not by folder structure.
 
 Use the note's content and frontmatter `type` to decide placement:
 
-| Content is about... | Section |
-|---------------------|---------|
-| Vault structure, agent config, system architecture | System |
-| A specific repo, feature, or project | Active Projects |
-| CLI tools, setup gotchas, operational knowledge | Tools & Setup |
-| Reusable implementation approaches | Patterns |
-| Session recaps with unique insights | Sessions |
+| Content is about... | Section | Typical source |
+|---------------------|---------|----------------|
+| Vault structure, agent config, system architecture | System | Memory |
+| A specific repo, feature, or project | Active Projects | Memory |
+| CLI tools, setup gotchas, operational knowledge | Tools & Setup | Memory + Knowledge/06_docs |
+| Environment setup, shell config, dev tooling | Tools & Setup | Knowledge/06_docs |
+| Reusable implementation approaches | Patterns | Memory |
+| Session recaps with unique insights | Sessions | Memory |
 
 If a session recap's insights are already captured in another note, skip it or add a brief reference. Avoid duplicating information across sections.
 

@@ -47,6 +47,7 @@ workflows.toml          defines workflows, schedules, metadata
     types.ts                          # all interfaces (Workflow, Config, RunState, etc.)
     validate.ts                       # TOML config validation
     state.ts                          # run state read/write + formatting helpers
+    plist.ts                          # nvm resolution + launchd plist generation
   bin/
     wf                                # compiled binary (gitignored)
   plists/                             # generated launchd plists (gitignored)
@@ -67,6 +68,20 @@ Two types, declared in `workflows.toml` via the `type` field:
 Validation enforces mutual exclusivity: agent-type requires `prompt` (rejects `script`), script-type requires `script` (rejects `prompt`).
 
 Agent-type workflows have no per-workflow script file. The CLI handles prompt loading and opencode dispatch directly, eliminating duplication.
+
+### Timeout
+
+Workflows can set a `timeout` (seconds) to limit run duration via launchd's `TimeOut` key. Configurable per-workflow or as a default in `[meta]`:
+
+```toml
+[meta]
+default_timeout = 3600    # 1 hour fallback for all workflows
+
+[workflows.vault-embeddings]
+timeout = 300             # override: 5 minutes for this workflow
+```
+
+Per-workflow `timeout` takes precedence over `default_timeout`. If neither is set, launchd uses its own default. Validated as a positive integer.
 
 ### Separation: prompts/ vs scripts/
 - `prompts/` — Pure markdown agent instructions. Clean syntax highlighting, no escaping, readable standalone.
@@ -142,17 +157,20 @@ Each `wf run` writes run state to `state/<name>.json`:
 
 ## Workflows
 
-### 1. vault-inbox-processing
+All workflows run nightly, staggered to avoid overlap and ordered by dependency:
+
+### 1. vault-embeddings
 
 | Field | Value |
 |-------|-------|
-| Type | `agent` |
-| Prompt | `prompts/vault-inbox-processing.md` |
-| Schedule | Weekdays 8am |
-| Scope | Create + edit in Knowledge vault. Deletes processed inbox originals. |
-| Vaults | Knowledge |
+| Type | `script` |
+| Script | `scripts/vault-embeddings.ts` |
+| Schedule | Daily 2am |
+| Timeout | 300s (5 min) |
+| Scope | Read-only (QMD indexes but never modifies source files) |
+| Vaults | Memory |
 
-Based on `/obs-triage-inbox` command. Lists inbox, fetches URLs, checks duplicates, creates enriched backlog notes, deletes originals.
+Sources nvm, runs `qmd update && qmd embed`. No agent involved. Runs first to ensure search index is current for downstream workflows.
 
 ### 2. vault-grooming
 
@@ -160,7 +178,7 @@ Based on `/obs-triage-inbox` command. Lists inbox, fetches URLs, checks duplicat
 |-------|-------|
 | Type | `agent` |
 | Prompt | `prompts/vault-grooming.md` |
-| Schedule | Sundays 3am |
+| Schedule | Daily 3am |
 | Scope | Knowledge: edit + report (no delete). Memory: edit + delete. |
 | Vaults | Knowledge + Memory |
 
@@ -172,23 +190,23 @@ Scans both vaults for broken wikilinks, invalid frontmatter, orphans, stubs. Wri
 |-------|-------|
 | Type | `agent` |
 | Prompt | `prompts/vault-knowledge-distillation.md` |
-| Schedule | Sundays 10pm |
+| Schedule | Daily 4am |
 | Scope | Create + edit in Memory vault |
 | Vaults | Memory |
 
-Reads all Memory vault notes, distills into `MEMORY.md` at vault root. Telegraph style, organized by topic, with wikilinks. Overwrites on each run. Writes via filesystem (backtick safety).
+Reads all Memory vault notes, distills into `MEMORY.md` at vault root. Telegraph style, organized by topic, with wikilinks. Overwrites on each run. Writes via filesystem (backtick safety). Runs after grooming so it summarizes clean state.
 
-### 4. vault-embeddings
+### 4. vault-inbox-processing
 
 | Field | Value |
 |-------|-------|
-| Type | `script` |
-| Script | `scripts/vault-embeddings.ts` |
-| Schedule | Daily 4am |
-| Scope | Read-only (QMD indexes but never modifies source files) |
-| Vaults | Memory |
+| Type | `agent` |
+| Prompt | `prompts/vault-inbox-processing.md` |
+| Schedule | Daily 5am |
+| Scope | Create + edit in Knowledge vault. Deletes processed inbox originals. |
+| Vaults | Knowledge |
 
-Sources nvm, runs `qmd update && qmd embed`. No agent involved.
+Based on `/obs-triage-inbox` command. Lists inbox, fetches URLs, checks duplicates, creates enriched backlog notes, deletes originals. Runs last so triaged items are ready for the day.
 
 ### Future: vault-relationship-discovery
 Agent-driven workflow using QMD search to identify semantic clusters and write wikilinks back to notes. Not implemented — add when vault has enough content.
@@ -200,7 +218,7 @@ Agent-driven workflow using QMD search to identify semantic clusters and write w
 | Command | Description |
 |---------|-------------|
 | `wf list` | Config view: all workflows with type, schedule, enabled/disabled, description |
-| `wf status` | Runtime view: loaded state, last run time, exit code, duration, failure streaks |
+| `wf status` | Runtime view: enabled/disabled, scheduled/not scheduled, last run, health, failure streaks |
 | `wf install` | Generate plists → copy to `~/Library/LaunchAgents/` → `launchctl bootstrap` |
 | `wf uninstall` | `launchctl bootout` + remove plists, per-workflow reporting |
 | `wf run <name>` | Execute workflow immediately (bypass schedule), writes state |
@@ -209,14 +227,16 @@ Agent-driven workflow using QMD search to identify semantic clusters and write w
 | `wf disable <name>` | Unload a single workflow from launchd |
 
 ### Implementation
-- **Source layout**: `src/wf.ts` (CLI), `src/types.ts` (interfaces), `src/validate.ts` (config validation), `src/state.ts` (run state).
+- **Source layout**: `src/wf.ts` (CLI + commands), `src/types.ts` (interfaces), `src/validate.ts` (config validation), `src/state.ts` (run state), `src/plist.ts` (nvm resolution + plist generation).
 - **TOML**: `import { TOML } from "bun"` — built-in parser, zero deps.
-- **Config validation**: Schema-level checks after parse (type enum, field exclusivity, schedule ranges).
-- **Plist XML**: Template function handling weekday array expansion.
+- **Config validation**: Schema-level checks after parse (type enum, field exclusivity, schedule ranges, timeout).
+- **Plist generation**: `src/plist.ts` handles XML template, weekday array expansion, nvm node resolution, optional `TimeOut` key.
 - **Environment in plists**: PATH (dynamically resolved nvm node + bun + homebrew + system), HOME, NVM_DIR.
 - **UID**: Resolved via `id -u` subprocess, with env override.
+- **ANSI output**: All commands use colored terminal output — green for healthy/enabled, red for errors/failures, yellow for warnings, cyan for agent type, dim for secondary info, bold for names.
+- **Status labels**: `scheduled` / `not scheduled` indicates whether launchd will fire the workflow. `ok` / `failed` for last run health. Consecutive failure count shown when > 1.
 - **No npm deps** — pure Bun APIs.
-- **Compiled binary path**: Detects bundled vs dev mode for correct ROOT resolution.
+- **Compiled binary path**: Detects bundled vs dev mode (`/$bunfs` prefix check) for correct ROOT resolution.
 
 ### Build
 ```bash
