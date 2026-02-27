@@ -45,7 +45,8 @@ Read `~/Vaults/AGENTS.md` for current vault conventions before starting.
 - Report every split in the grooming report (original → new notes).
 
 **Backlog promotion** (project-specific notes stuck in `02_backlog/`):
-- Scan all `02_backlog/` notes for project tags (`#esgenius`, `#linai`, `#verion`, `#tux`, `#acsync`, etc.) or explicit `[[wikilinks]]` / mentions of an active project.
+- First, discover active project tags: `obsidian vault=Knowledge files folder=03_active` — derive a tag for each project from its filename (e.g. `my-project.md` → `#my-project`). Use these as the set of known project tags.
+- Scan all `02_backlog/` notes for any of those project tags, explicit `[[wikilinks]]`, or mentions of an active project.
 - For each match:
   1. Find the matching project note in `03_active/`.
   2. Read both the backlog note and the project note.
