@@ -23,7 +23,7 @@ Workflows are defined in `workflows.toml`. Agent-type workflows read a markdown 
 | `vault-grooming` | agent | 03:30 | Fix broken links, connect orphans, clean frontmatter |
 | `vault-knowledge-distillation` | agent | 04:30 | Condense vault into a single context file for agents |
 
-Workflows run nightly, staggered to avoid overlap and ordered by dependency.
+Workflows run nightly, staggered to avoid overlap and ordered by dependency. On `wf install`, a scheduled wake (`pmset repeat wakeorpoweron`) is set so the Mac wakes from sleep to run them.
 
 ## CLI
 
@@ -33,8 +33,8 @@ wf status            show runtime health
 wf run <name>        run a workflow now
 wf logs <name>       show logs
 
-wf install           install all into launchd
-wf uninstall         remove all from launchd
+wf install           install all into launchd + schedule wake
+wf uninstall         remove all from launchd + clear wake
 wf enable <name>     activate a workflow
 wf disable <name>    deactivate a workflow
 
@@ -108,11 +108,18 @@ src/
   validate.ts           TOML config validation
   state.ts              run state + formatting helpers
   plist.ts              nvm resolution + launchd plist generation
+  wake.ts               scheduled wake via pmset (sleep-proof scheduling)
 bin/wf                  compiled binary (gitignored)
 plists/                 generated launchd plists (gitignored)
 logs/                   runtime logs (gitignored)
 state/                  JSON run state per workflow (gitignored)
 ```
+
+## Sleep & wake
+
+launchd `StartCalendarInterval` jobs don't fire while the Mac is asleep — but they fire once on the next wake (coalesced if multiple intervals were missed). `wf install` automatically sets a `pmset repeat wakeorpoweron` at the earliest scheduled workflow time so the Mac wakes, runs workflows, and sleeps again after idle timeout. Requires sudo (prompted during install).
+
+`wf status` shows the current wake schedule. `wf uninstall` clears it.
 
 ## Writing prompts
 

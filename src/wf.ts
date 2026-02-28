@@ -13,6 +13,7 @@ import type { Config, RunEntry, Workflow } from "./types";
 import { validateConfig } from "./validate";
 import { readState, writeState, relativeTime, formatDuration } from "./state";
 import { generatePlist } from "./plist";
+import { configureScheduledWake, clearScheduledWake, printWakeStatus } from "./wake";
 
 // ── ANSI ───────────────────────────────────────────────────────────
 
@@ -308,6 +309,8 @@ function cmdInstall() {
     }
   }
 
+  configureScheduledWake(cfg);
+
   console.log("");
   if (fail === 0) {
     console.log(`${c.green}${ok} workflows installed${R}`);
@@ -361,6 +364,8 @@ function cmdUninstall() {
       unlinkSync(resolve(dir, f));
     }
   }
+
+  clearScheduledWake();
   console.log("");
 }
 
@@ -415,6 +420,8 @@ function cmdStatus() {
 
     console.log("");
   }
+
+  printWakeStatus();
 }
 
 function cmdLogs(name: string) {
@@ -481,6 +488,7 @@ function cmdEnable(name: string) {
     console.log(
       `${c.green}+${R} ${c.bold}${name}${R} ${c.dim}enabled${R}`,
     );
+    configureScheduledWake(cfg);
   } else {
     console.log("");
     console.error(
@@ -510,6 +518,7 @@ function cmdDisable(name: string) {
     console.log(
       `${c.green}-${R} ${c.bold}${name}${R} ${c.dim}disabled${R}`,
     );
+    configureScheduledWake(cfg, name);
   } else {
     console.log("");
     console.error(

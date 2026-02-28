@@ -18,6 +18,7 @@ src/
   validate.ts           TOML config validation
   state.ts              run state read/write + formatting helpers
   plist.ts              nvm resolution + launchd plist generation
+  wake.ts               scheduled wake via pmset (sleep-proof scheduling)
 bin/wf                  compiled binary (gitignored)
 plists/                 generated launchd plists (gitignored)
 logs/                   runtime logs (gitignored)
