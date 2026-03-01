@@ -7,8 +7,8 @@ Scheduled AI agent workflows for Obsidian vault maintenance. macOS-native, launc
 ## How it works
 
 ```
-launchd -> wf run <name> -> agent: opencode run <prompt>
-                          -> script: bun run scripts/<name>.ts
+launchd -> caffeinate -s -> wf run <name> -> agent: opencode run <prompt>
+                                           -> script: bun run scripts/<name>.ts
 ```
 
 Workflows are defined in `workflows.toml`. Agent-type workflows read a markdown prompt from `prompts/` and pass it to `opencode run`. Script-type workflows execute a TypeScript file via Bun.
@@ -118,6 +118,8 @@ state/                  JSON run state per workflow (gitignored)
 ## Sleep & wake
 
 launchd `StartCalendarInterval` jobs don't fire while the Mac is asleep — but they fire once on the next wake (coalesced if multiple intervals were missed). `wf install` automatically sets a `pmset repeat wakeorpoweron` at the earliest scheduled workflow time so the Mac wakes, runs workflows, and sleeps again after idle timeout. Requires sudo (prompted during install).
+
+All launchd jobs are wrapped with `caffeinate -s` to hold a `PreventSystemSleep` assertion for the workflow's lifetime. This prevents clamshell sleep from freezing processes after a scheduled wake.
 
 `wf status` shows the current wake schedule. `wf uninstall` clears it.
 
