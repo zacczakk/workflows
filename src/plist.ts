@@ -110,7 +110,6 @@ export function generatePlist(
   const lbl = `${cfg.meta.label_prefix}.${name}`;
   const dicts = expandSchedule(wf.schedule).map(scheduleDict).join("\n");
   const home = homedir();
-  const timeout = wf.timeout ?? cfg.meta.default_timeout;
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
@@ -141,7 +140,7 @@ ${dicts}
         <string>${escapeXml(home)}</string>
         <key>NVM_DIR</key>
         <string>${escapeXml(resolve(home, ".nvm"))}</string>
-    </dict>${timeout ? `\n    <key>TimeOut</key>\n    <integer>${timeout}</integer>` : ""}
+    </dict>
 </dict>
 </plist>`;
 }

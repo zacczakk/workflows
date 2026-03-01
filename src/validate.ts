@@ -124,6 +124,17 @@ export function validateConfig(parsed: unknown): Config {
       if (w.prompt !== undefined) {
         throw new ConfigError(path, "script-type workflow must not have 'prompt' field");
       }
+      if (w.model !== undefined) {
+        throw new ConfigError(path, "script-type workflow must not have 'model' field");
+      }
+    }
+
+    let model: string | undefined;
+    if (w.model !== undefined) {
+      if (typeof w.model !== "string" || w.model.length === 0) {
+        throw new ConfigError(path, "'model' must be a non-empty string (provider/model)");
+      }
+      model = w.model;
     }
 
     const description = requireString(w, "description", path);
@@ -146,6 +157,7 @@ export function validateConfig(parsed: unknown): Config {
       type: type as "agent" | "script",
       prompt: type === "agent" ? (w.prompt as string) : undefined,
       script: type === "script" ? (w.script as string) : undefined,
+      model,
       description,
       enabled,
       timeout,

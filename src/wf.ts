@@ -198,7 +198,10 @@ async function cmdRun(name: string) {
   const sd = stateDir(cfg);
   const startedAt = new Date().toISOString();
   const t0 = Date.now();
+  const timeout = (wf.timeout ?? cfg.meta.default_timeout ?? 3600) * 1000;
+  const KILL_GRACE = 5_000;
   let code: number;
+  let proc: ReturnType<typeof Bun.spawn>;
 
   if (wf.type === "agent") {
     const promptPath = resolve(ROOT, wf.prompt!);
@@ -210,16 +213,19 @@ async function cmdRun(name: string) {
     }
 
     const promptText = readFileSync(promptPath, "utf-8");
+    const args = ["opencode", "run"];
+    if (wf.model) args.push("-m", wf.model);
+    args.push(promptText);
+
     console.log("");
     console.log(
       `${c.cyan}>${R} running ${c.bold}${name}${R} ${c.dim}(agent)${R}`,
     );
-    const proc = Bun.spawn(["opencode", "run", promptText], {
+    proc = Bun.spawn(args, {
       stdout: "inherit",
       stderr: "inherit",
       cwd: ROOT,
     });
-    code = await proc.exited;
   } else {
     const scriptPath = resolve(ROOT, wf.script!);
     if (!existsSync(scriptPath)) {
@@ -233,13 +239,38 @@ async function cmdRun(name: string) {
     console.log(
       `${c.cyan}>${R} running ${c.bold}${name}${R} ${c.dim}(script)${R}`,
     );
-    const proc = Bun.spawn(["bun", "run", scriptPath], {
+    proc = Bun.spawn(["bun", "run", scriptPath], {
       stdout: "inherit",
       stderr: "inherit",
       cwd: ROOT,
     });
-    code = await proc.exited;
   }
+
+  const timedOut = await Promise.race([
+    proc.exited.then(() => false),
+    new Promise<true>((resolve) => setTimeout(() => resolve(true), timeout)),
+  ]);
+
+  if (timedOut) {
+    const dur = formatDuration(timeout);
+    console.error(
+      `${c.bYellow}timeout${R} ${c.bold}${name}${R} ${c.dim}exceeded ${dur} — sending SIGTERM${R}`,
+    );
+    proc.kill("SIGTERM");
+    const killed = await Promise.race([
+      proc.exited.then(() => true),
+      new Promise<false>((resolve) => setTimeout(() => resolve(false), KILL_GRACE)),
+    ]);
+    if (!killed) {
+      console.error(
+        `${c.bRed}timeout${R} ${c.bold}${name}${R} ${c.dim}did not exit — sending SIGKILL${R}`,
+      );
+      proc.kill("SIGKILL");
+      await proc.exited;
+    }
+  }
+
+  code = proc.exitCode ?? 143;
 
   const durationMs = Date.now() - t0;
   const entry: RunEntry = { startedAt, exitCode: code, durationMs };

@@ -14,6 +14,7 @@ export interface Workflow {
   type: "agent" | "script";
   prompt?: string;
   script?: string;
+  model?: string;
   description: string;
   enabled: boolean;
   timeout?: number;

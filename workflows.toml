@@ -16,6 +16,7 @@ schedule = { hour = 2, minute = 0 }
 [workflows.vault-inbox-processing]
 type = "agent"
 prompt = "prompts/vault-inbox-processing.md"
+model = "github-copilot/claude-opus-4.6"
 description = "Process Knowledge vault inbox into enriched backlog notes"
 enabled = true
 timeout = 1800
@@ -24,6 +25,7 @@ schedule = { hour = 2, minute = 30 }
 [workflows.vault-session-processing]
 type = "agent"
 prompt = "prompts/vault-session-processing.md"
+model = "github-copilot/claude-opus-4.6"
 description = "Distill session notes into patterns, tools, and project knowledge"
 enabled = true
 timeout = 1800
@@ -32,6 +34,7 @@ schedule = { hour = 3, minute = 0 }
 [workflows.vault-grooming]
 type = "agent"
 prompt = "prompts/vault-grooming.md"
+model = "github-copilot/claude-opus-4.6"
 description = "Sweep both vaults for broken links, orphans, stale notes"
 enabled = true
 timeout = 3600
@@ -40,6 +43,7 @@ schedule = { hour = 3, minute = 30 }
 [workflows.vault-knowledge-distillation]
 type = "agent"
 prompt = "prompts/vault-knowledge-distillation.md"
+model = "github-copilot/claude-opus-4.6"
 description = "Distill Memory vault into condensed MEMORY.md"
 enabled = true
 timeout = 3600
