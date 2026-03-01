@@ -4,7 +4,7 @@ Scheduled workflow execution for vault maintenance and agent-driven tasks. launc
 
 ## Read First
 
-- `docs/plans/PLAN.md` — full execution plan with all research context, architecture decisions, and implementation details.
+- `docs/plans/PLAN.md` — full execution plan with research context, architecture decisions, implementation details.
 
 ## Structure
 
@@ -29,26 +29,16 @@ state/                  JSON run state per workflow (gitignored)
 
 Two workflow types, declared via `type` field in `workflows.toml`:
 
-- `type = "agent"` — `wf` reads prompt from `prompts/`, spawns `opencode run <prompt-text>` directly.
-- `type = "script"` — `wf` spawns `bun run scripts/<name>.ts`.
+- `type = "agent"` — reads prompt from `prompts/`, spawns `opencode run <prompt-text>`.
+- `type = "script"` — spawns `bun run scripts/<name>.ts`.
 
 ```
 launchd → wf run <name> → agent: opencode run <prompt>
                          → script: bun run scripts/<name>.ts
 ```
 
-## Key tools on PATH
+## Repo Conventions
 
-- `opencode` — agent runner (headless via `opencode run`)
-- `qmd` — hybrid markdown search (requires Node >= 22 via nvm)
-- `obsidian` — vault CRUD
-- `bun` — build wf.ts, run script-type workflows
-
-## Conventions
-
-- Commits: Conventional Commits.
-- Files < 500 LOC.
-- No secrets in repo. Use `.env` for local values.
 - launchd plists call `wf run <name>`, not scripts directly.
 - Agent prompts in `prompts/` are self-contained — no dependency on interactive context.
 - Node version resolved dynamically from nvm aliases at `wf install` time.
