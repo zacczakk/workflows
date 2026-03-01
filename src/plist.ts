@@ -120,6 +120,9 @@ export function generatePlist(
     <string>${escapeXml(lbl)}</string>
     <key>ProgramArguments</key>
     <array>
+        <string>/usr/bin/caffeinate</string>
+        <string>-s</string>
+        <string>--</string>
         <string>${escapeXml(resolve(root, "bin/wf"))}</string>
         <string>run</string>
         <string>${escapeXml(name)}</string>
