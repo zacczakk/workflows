@@ -1,4 +1,4 @@
-import type { Config } from "./types";
+import type { Config, TimeSpec } from "./types";
 
 class ConfigError extends Error {
   constructor(path: string, msg: string) {
@@ -22,51 +22,23 @@ function requireBool(obj: Record<string, unknown>, key: string, path: string): b
   return val;
 }
 
-function intInRange(
-  obj: Record<string, unknown>,
-  key: string,
-  min: number,
-  max: number,
-  path: string,
-): number | undefined {
-  const val = obj[key];
-  if (val === undefined) return undefined;
-  if (typeof val !== "number" || !Number.isInteger(val) || val < min || val > max) {
-    throw new ConfigError(path, `'${key}' must be an integer ${min}-${max}`);
-  }
-  return val;
-}
-
-function validateSchedule(raw: unknown, path: string) {
+function validateTimeSpec(raw: unknown, path: string): TimeSpec {
   if (typeof raw !== "object" || raw === null) {
-    throw new ConfigError(path, "schedule must be an object");
+    throw new ConfigError(path, "must be an object with hour and minute");
   }
   const s = raw as Record<string, unknown>;
-  const hour = intInRange(s, "hour", 0, 23, path);
-  const minute = intInRange(s, "minute", 0, 59, path);
-  const month = intInRange(s, "month", 1, 12, path);
-  const day = intInRange(s, "day", 1, 31, path);
 
-  let weekday: number | number[] | undefined;
-  if (s.weekday !== undefined) {
-    if (typeof s.weekday === "number") {
-      if (!Number.isInteger(s.weekday) || s.weekday < 0 || s.weekday > 6) {
-        throw new ConfigError(path, "'weekday' must be 0-6");
-      }
-      weekday = s.weekday;
-    } else if (Array.isArray(s.weekday)) {
-      for (const d of s.weekday) {
-        if (typeof d !== "number" || !Number.isInteger(d) || d < 0 || d > 6) {
-          throw new ConfigError(path, "'weekday' array values must be integers 0-6");
-        }
-      }
-      weekday = s.weekday as number[];
-    } else {
-      throw new ConfigError(path, "'weekday' must be a number or array of numbers");
-    }
+  const hour = s.hour;
+  if (typeof hour !== "number" || !Number.isInteger(hour) || hour < 0 || hour > 23) {
+    throw new ConfigError(path, "'hour' must be an integer 0-23");
   }
 
-  return { hour, minute, month, day, weekday };
+  const minute = s.minute;
+  if (typeof minute !== "number" || !Number.isInteger(minute) || minute < 0 || minute > 59) {
+    throw new ConfigError(path, "'minute' must be an integer 0-59");
+  }
+
+  return { hour, minute };
 }
 
 export function validateConfig(parsed: unknown): Config {
@@ -138,7 +110,6 @@ export function validateConfig(parsed: unknown): Config {
     }
 
     const description = requireString(w, "description", path);
-    const enabled = requireBool(w, "enabled", path);
 
     let timeout: number | undefined;
     if (w.timeout !== undefined) {
@@ -148,22 +119,58 @@ export function validateConfig(parsed: unknown): Config {
       timeout = w.timeout;
     }
 
-    if (w.schedule === undefined) {
-      throw new ConfigError(path, "missing 'schedule'");
-    }
-    const schedule = validateSchedule(w.schedule, `${path}.schedule`);
-
     workflows[name] = {
       type: type as "agent" | "script",
       prompt: type === "agent" ? (w.prompt as string) : undefined,
       script: type === "script" ? (w.script as string) : undefined,
       model,
       description,
-      enabled,
       timeout,
-      schedule,
     };
   }
 
-  return { meta, workflows };
+  // ── Schedules ──────────────────────────────────────────────────
+  if (typeof root.schedules !== "object" || root.schedules === null) {
+    throw new ConfigError("schedules", "missing or invalid");
+  }
+  const schedRaw = root.schedules as Record<string, unknown>;
+  const schedules: Config["schedules"] = {};
+
+  for (const [name, raw] of Object.entries(schedRaw)) {
+    if (typeof raw !== "object" || raw === null) {
+      throw new ConfigError(`schedules.${name}`, "must be an object");
+    }
+    const s = raw as Record<string, unknown>;
+    const path = `schedules.${name}`;
+
+    if (s.time === undefined) {
+      throw new ConfigError(path, "missing 'time'");
+    }
+    const time = validateTimeSpec(s.time, `${path}.time`);
+
+    let watchdog: TimeSpec | undefined;
+    if (s.watchdog !== undefined) {
+      watchdog = validateTimeSpec(s.watchdog, `${path}.watchdog`);
+    }
+
+    const enabled = requireBool(s, "enabled", path);
+
+    if (!Array.isArray(s.workflows) || s.workflows.length === 0) {
+      throw new ConfigError(path, "'workflows' must be a non-empty array of workflow names");
+    }
+    const wfNames: string[] = [];
+    for (const ref of s.workflows) {
+      if (typeof ref !== "string" || ref.length === 0) {
+        throw new ConfigError(path, "'workflows' entries must be non-empty strings");
+      }
+      if (!workflows[ref]) {
+        throw new ConfigError(path, `references unknown workflow '${ref}'`);
+      }
+      wfNames.push(ref);
+    }
+
+    schedules[name] = { time, watchdog, enabled, workflows: wfNames };
+  }
+
+  return { meta, workflows, schedules };
 }

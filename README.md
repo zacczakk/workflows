@@ -7,36 +7,43 @@ Scheduled AI agent workflows for Obsidian vault maintenance. macOS-native, launc
 ## How it works
 
 ```
-launchd -> caffeinate -s -> wf run <name> -> agent: opencode run <prompt>
-                                           -> script: bun run scripts/<name>.ts
+pmset wakeorpoweron  →  launchd fires at 02:00
+                         └── wf run-all
+                              ├── disablesleep 1
+                              ├── vault-embeddings     (script)
+                              ├── vault-inbox-processing (agent)
+                              ├── vault-session-processing (agent)
+                              ├── vault-grooming         (agent)
+                              ├── vault-knowledge-distillation (agent)
+                              └── disablesleep 0
+watchdog at 06:00    →  disablesleep 0 (safety net)
 ```
 
-Workflows are defined in `workflows.toml`. Agent-type workflows read a markdown prompt from `prompts/` and pass it to `opencode run`. Script-type workflows execute a TypeScript file via Bun.
+Workflows run **sequentially** in schedule order — the next starts immediately after the previous finishes. A single launchd plist triggers `wf run-all` at the earliest schedule time. Per-workflow timeouts still apply.
+
+Sleep is disabled for the duration of the batch and re-enabled afterward (via `finally` block + signal traps). A watchdog plist at 06:00 guarantees sleep re-enables even if `wf` crashes.
 
 ## Included workflows
 
-| Workflow | Type | Schedule | What it does |
-|----------|------|----------|-------------|
-| `vault-embeddings` | script | 02:00 | Re-index vault in QMD for hybrid search |
-| `vault-inbox-processing` | agent | 02:30 | Triage raw inbox captures into enriched backlog notes |
-| `vault-session-processing` | agent | 03:00 | Distill session notes into patterns and project knowledge |
-| `vault-grooming` | agent | 03:30 | Fix broken links, connect orphans, clean frontmatter |
-| `vault-knowledge-distillation` | agent | 04:30 | Condense vault into a single context file for agents |
-
-Workflows run nightly, staggered to avoid overlap and ordered by dependency. On `wf install`, a scheduled wake (`pmset repeat wakeorpoweron`) is set so the Mac wakes from sleep to run them.
+| Workflow | Type | Timeout | What it does |
+|----------|------|---------|-------------|
+| `vault-embeddings` | script | 30m | Re-index vault in QMD for hybrid search |
+| `vault-inbox-processing` | agent | 30m | Triage raw inbox captures into enriched backlog notes |
+| `vault-session-processing` | agent | 30m | Distill session notes into patterns and project knowledge |
+| `vault-grooming` | agent | 1h | Fix broken links, connect orphans, clean frontmatter |
+| `vault-knowledge-distillation` | agent | 1h | Condense vault into a single context file for agents |
 
 ## CLI
 
 ```
 wf list              show all workflows
 wf status            show runtime health
-wf run <name>        run a workflow now
-wf logs <name>       show logs
+wf run <name>        run a single workflow
+wf run-all           run all enabled workflows sequentially
+wf logs <name>       show logs (or "runner" for batch logs)
 
-wf install           install all into launchd + schedule wake
-wf uninstall         remove all from launchd + clear wake
-wf enable <name>     activate a workflow
-wf disable <name>    deactivate a workflow
+wf install           install into launchd + schedule wake
+wf uninstall         remove from launchd + clear wake
 
 --sort <key>         sort list/status (schedule, name)
 ```
@@ -53,20 +60,62 @@ wf disable <name>    deactivate a workflow
 - [qmd](https://github.com/tobi/qmd) — hybrid markdown search + embeddings (required for `vault-embeddings`, optional for agent workflows)
 - Two Obsidian vaults at `~/Vaults/Knowledge/` and `~/Vaults/Memory/`
 
-### Build & install
+### 1. Build
 
 ```bash
-# compile the CLI
+git clone https://github.com/zacczakk/workflows.git
+cd workflows
 bun build src/wf.ts --compile --outfile bin/wf
-
-# add to PATH
 export PATH="$PWD/bin:$PATH"
+```
 
-# one-time: register vault with qmd for embeddings
+### 2. Configure sudoers for sleep management
+
+Workflows run overnight while the Mac lid is closed. `wf` uses `pmset disablesleep` to prevent clamshell sleep during execution. This requires passwordless sudo for exactly two commands:
+
+```bash
+# create the sudoers rule
+sudo tee /etc/sudoers.d/wf-pmset > /dev/null << 'EOF'
+<your-username> ALL=(ALL) NOPASSWD: /usr/bin/pmset -a disablesleep 1
+<your-username> ALL=(ALL) NOPASSWD: /usr/bin/pmset -a disablesleep 0
+EOF
+
+# set permissions + validate
+sudo chmod 0440 /etc/sudoers.d/wf-pmset
+sudo visudo -cf /etc/sudoers.d/wf-pmset
+
+# verify it works
+sudo -n pmset -a disablesleep 1 && sudo -n pmset -a disablesleep 0
+```
+
+Replace `<your-username>` with your macOS username (`whoami`).
+
+**Security note:** The sudoers rule is scoped to exactly `pmset -a disablesleep 0` and `pmset -a disablesleep 1`. No other `pmset` subcommands get passwordless access. The `disablesleep` flag is runtime-only and resets on reboot.
+
+### 3. Register QMD collection
+
+```bash
 qmd collection add ~/Vaults/Memory --name memory
+```
 
-# register with launchd
+### 4. Install
+
+```bash
 wf install
+```
+
+This registers two launchd agents:
+
+- **`wf-runner`** — triggers `wf run-all` at the earliest workflow schedule time (02:00 by default)
+- **`wf-sleep-watchdog`** — runs `pmset disablesleep 0` at 06:00 daily as a safety net
+
+It also sets a `pmset repeat wakeorpoweron` so the Mac wakes from sleep to run workflows. This step prompts for sudo (one time).
+
+### 5. Verify
+
+```bash
+wf status          # should show runner + watchdog as scheduled
+wf run-all         # manual test — runs all workflows now
 ```
 
 ## Configuration
@@ -85,8 +134,10 @@ prompt = "prompts/my-workflow.md"        # agent-type: path to prompt markdown
 description = "What this workflow does"
 enabled = true
 timeout = 1800                          # optional, overrides default_timeout
-schedule = { hour = 3, minute = 0 }     # launchd StartCalendarInterval
+schedule = { hour = 3, minute = 0 }     # determines execution order
 ```
+
+The `schedule` field determines **execution order** within `run-all` (earliest first). All enabled workflows run sequentially in a single batch.
 
 ### Schedule options
 
@@ -117,15 +168,26 @@ state/                  JSON run state per workflow (gitignored)
 
 ## Sleep & wake
 
-launchd `StartCalendarInterval` jobs don't fire while the Mac is asleep — but they fire once on the next wake (coalesced if multiple intervals were missed). `wf install` automatically sets a `pmset repeat wakeorpoweron` at the earliest scheduled workflow time so the Mac wakes, runs workflows, and sleeps again after idle timeout. Requires sudo (prompted during install).
+Workflows run overnight with the Mac lid closed. Three layers ensure reliability:
 
-All launchd jobs are wrapped with `caffeinate -s` to hold a `PreventSystemSleep` assertion for the workflow's lifetime. This prevents clamshell sleep from freezing processes after a scheduled wake.
+1. **`pmset repeat wakeorpoweron`** — wakes the Mac at the scheduled time (set during `wf install`)
+2. **`pmset disablesleep`** — prevents clamshell sleep while workflows execute (`wf run`/`wf run-all` toggle this automatically via passwordless sudo)
+3. **Sleep watchdog** — a launchd job at 06:00 that runs `pmset disablesleep 0` as a safety net in case `wf` crashes without re-enabling sleep
 
-`wf status` shows the current wake schedule. `wf uninstall` clears it.
+The `disablesleep` flag is runtime-only (not persisted) — a reboot always clears it.
+
+`wf status` shows the current wake schedule. `wf uninstall` clears everything.
 
 ## Writing prompts
 
 Agent prompts in `prompts/` are self-contained markdown files. They are read by `wf` at runtime and passed directly to `opencode run` as the prompt text. No interactive context is available — prompts must include all instructions the agent needs.
+
+## Uninstall
+
+```bash
+wf uninstall                          # removes launchd agents + clears wake
+sudo rm /etc/sudoers.d/wf-pmset      # removes passwordless pmset access
+```
 
 ## License
 

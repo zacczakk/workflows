@@ -1,11 +1,8 @@
-// ── Schedule ────────────────────────────────────────────────────────
+// ── Time ────────────────────────────────────────────────────────────
 
-export interface Schedule {
-  hour?: number;
-  minute?: number;
-  month?: number;
-  day?: number;
-  weekday?: number | number[];
+export interface TimeSpec {
+  hour: number;
+  minute: number;
 }
 
 // ── Workflow ────────────────────────────────────────────────────────
@@ -16,9 +13,16 @@ export interface Workflow {
   script?: string;
   model?: string;
   description: string;
-  enabled: boolean;
   timeout?: number;
-  schedule: Schedule;
+}
+
+// ── Schedule ────────────────────────────────────────────────────────
+
+export interface ScheduleDef {
+  time: TimeSpec;
+  watchdog?: TimeSpec;
+  enabled: boolean;
+  workflows: string[];
 }
 
 // ── Config ──────────────────────────────────────────────────────────
@@ -32,6 +36,7 @@ export interface Config {
     default_timeout?: number;
   };
   workflows: Record<string, Workflow>;
+  schedules: Record<string, ScheduleDef>;
 }
 
 // ── Run state ───────────────────────────────────────────────────────

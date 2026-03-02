@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, readdirSync } from "fs";
 import { resolve } from "path";
 import { homedir } from "os";
-import type { Config } from "./types";
+import type { Config, TimeSpec } from "./types";
 
 // ── NVM resolution ─────────────────────────────────────────────────
 
@@ -65,7 +65,7 @@ function buildEnvPath(): string {
   ].join(":");
 }
 
-// ── XML + schedule helpers ─────────────────────────────────────────
+// ── XML helpers ────────────────────────────────────────────────────
 
 function escapeXml(s: string): string {
   return s
@@ -75,40 +75,26 @@ function escapeXml(s: string): string {
     .replace(/"/g, "&quot;");
 }
 
-/** Map our lowercase schedule keys to launchd PascalCase StartCalendarInterval keys */
-function expandSchedule(
-  sched: Config["workflows"][string]["schedule"],
-): Record<string, number>[] {
-  const base: Record<string, number> = {};
-  if (sched.hour !== undefined) base.Hour = sched.hour;
-  if (sched.minute !== undefined) base.Minute = sched.minute;
-  if (sched.month !== undefined) base.Month = sched.month;
-  if (sched.day !== undefined) base.Day = sched.day;
+// ── Labels ─────────────────────────────────────────────────────────
 
-  const weekdays = sched.weekday;
-  if (weekdays === undefined) return [base];
-  if (typeof weekdays === "number") return [{ ...base, Weekday: weekdays }];
-  return weekdays.map((d) => ({ ...base, Weekday: d }));
+export function scheduleRunnerLabel(cfg: Config, name: string): string {
+  return `${cfg.meta.label_prefix}.wf-${name}`;
 }
 
-function scheduleDict(entry: Record<string, number>): string {
-  const pairs = Object.entries(entry)
-    .map(([k, v]) => `            <key>${k}</key><integer>${v}</integer>`)
-    .join("\n");
-  return `        <dict>\n${pairs}\n        </dict>`;
+export function scheduleWatchdogLabel(cfg: Config, name: string): string {
+  return `${cfg.meta.label_prefix}.wf-${name}-watchdog`;
 }
 
 // ── Plist generation ───────────────────────────────────────────────
 
-export function generatePlist(
+export function generateRunnerPlist(
   cfg: Config,
-  name: string,
-  wf: Config["workflows"][string],
+  scheduleName: string,
+  time: TimeSpec,
   root: string,
   logPath: string,
 ): string {
-  const lbl = `${cfg.meta.label_prefix}.${name}`;
-  const dicts = expandSchedule(wf.schedule).map(scheduleDict).join("\n");
+  const lbl = scheduleRunnerLabel(cfg, scheduleName);
   const home = homedir();
 
   return `<?xml version="1.0" encoding="UTF-8"?>
@@ -120,21 +106,21 @@ export function generatePlist(
     <string>${escapeXml(lbl)}</string>
     <key>ProgramArguments</key>
     <array>
-        <string>/usr/bin/caffeinate</string>
-        <string>-s</string>
-        <string>--</string>
         <string>${escapeXml(resolve(root, "bin/wf"))}</string>
-        <string>run</string>
-        <string>${escapeXml(name)}</string>
+        <string>run-all</string>
+        <string>${escapeXml(scheduleName)}</string>
     </array>
     <key>StartCalendarInterval</key>
     <array>
-${dicts}
+        <dict>
+            <key>Hour</key><integer>${time.hour}</integer>
+            <key>Minute</key><integer>${time.minute}</integer>
+        </dict>
     </array>
     <key>StandardOutPath</key>
-    <string>${escapeXml(resolve(logPath, `${name}.out.log`))}</string>
+    <string>${escapeXml(resolve(logPath, `${scheduleName}.out.log`))}</string>
     <key>StandardErrorPath</key>
-    <string>${escapeXml(resolve(logPath, `${name}.err.log`))}</string>
+    <string>${escapeXml(resolve(logPath, `${scheduleName}.err.log`))}</string>
     <key>EnvironmentVariables</key>
     <dict>
         <key>PATH</key>
@@ -144,6 +130,44 @@ ${dicts}
         <key>NVM_DIR</key>
         <string>${escapeXml(resolve(home, ".nvm"))}</string>
     </dict>
+</dict>
+</plist>`;
+}
+
+export function generateWatchdogPlist(
+  cfg: Config,
+  scheduleName: string,
+  time: TimeSpec,
+  logPath: string,
+): string {
+  const lbl = scheduleWatchdogLabel(cfg, scheduleName);
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>${escapeXml(lbl)}</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/bin/sudo</string>
+        <string>/usr/bin/pmset</string>
+        <string>-a</string>
+        <string>disablesleep</string>
+        <string>0</string>
+    </array>
+    <key>StartCalendarInterval</key>
+    <array>
+        <dict>
+            <key>Hour</key><integer>${time.hour}</integer>
+            <key>Minute</key><integer>${time.minute}</integer>
+        </dict>
+    </array>
+    <key>StandardOutPath</key>
+    <string>${escapeXml(resolve(logPath, `${scheduleName}-watchdog.out.log`))}</string>
+    <key>StandardErrorPath</key>
+    <string>${escapeXml(resolve(logPath, `${scheduleName}-watchdog.err.log`))}</string>
 </dict>
 </plist>`;
 }

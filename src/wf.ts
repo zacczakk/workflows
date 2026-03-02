@@ -12,7 +12,12 @@ import { homedir } from "os";
 import type { Config, RunEntry, Workflow } from "./types";
 import { validateConfig } from "./validate";
 import { readState, writeState, relativeTime, formatDuration } from "./state";
-import { generatePlist } from "./plist";
+import {
+  generateRunnerPlist,
+  generateWatchdogPlist,
+  scheduleRunnerLabel,
+  scheduleWatchdogLabel,
+} from "./plist";
 import { configureScheduledWake, clearScheduledWake, printWakeStatus } from "./wake";
 
 // ── ANSI ───────────────────────────────────────────────────────────
@@ -41,8 +46,7 @@ const UID =
 
 function loadedLabels(): Set<string> {
   const result = Bun.spawnSync(["launchctl", "list"], {
-    stdout: "pipe",
-    stderr: "ignore",
+    stdout: "pipe", stderr: "ignore",
   });
   const labels = new Set<string>();
   for (const line of result.stdout.toString().split("\n")) {
@@ -50,6 +54,43 @@ function loadedLabels(): Set<string> {
     if (parts.length >= 3) labels.add(parts[2]);
   }
   return labels;
+}
+
+function bootoutLabel(lbl: string) {
+  Bun.spawnSync(["launchctl", "bootout", `gui/${UID}/${lbl}`], {
+    stdout: "ignore", stderr: "ignore",
+  });
+}
+
+function bootstrapPlist(agentPath: string): boolean {
+  const r = Bun.spawnSync(
+    ["launchctl", "bootstrap", `gui/${UID}`, agentPath],
+    { stdout: "ignore", stderr: "pipe" },
+  );
+  return r.exitCode === 0;
+}
+
+// ── Sleep management ───────────────────────────────────────────────
+
+function disableSleep(): boolean {
+  const r = Bun.spawnSync(
+    ["sudo", "-n", "/usr/bin/pmset", "-a", "disablesleep", "1"],
+    { stdout: "ignore", stderr: "pipe" },
+  );
+  if (r.exitCode !== 0) {
+    console.error(
+      `${c.bYellow}warn${R} ${c.dim}failed to disable sleep — sudo pmset not configured?${R}`,
+    );
+    return false;
+  }
+  return true;
+}
+
+function enableSleep() {
+  Bun.spawnSync(
+    ["sudo", "-n", "/usr/bin/pmset", "-a", "disablesleep", "0"],
+    { stdout: "ignore", stderr: "ignore" },
+  );
 }
 
 // ── Config ─────────────────────────────────────────────────────────
@@ -83,10 +124,6 @@ function loadConfig(): Config {
   }
 }
 
-function label(cfg: Config, name: string): string {
-  return `${cfg.meta.label_prefix}.${name}`;
-}
-
 function logDir(cfg: Config): string {
   return resolve(ROOT, cfg.meta.log_dir);
 }
@@ -103,113 +140,33 @@ function ensureDir(dir: string) {
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
 }
 
-// ── Formatting helpers ─────────────────────────────────────────────
+// ── Formatting ─────────────────────────────────────────────────────
 
-function weekdayName(d: number): string {
-  return ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][d] ?? String(d);
+function fmtTime(h: number, m: number): string {
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
-function formatSchedule(
-  sched: Config["workflows"][string]["schedule"],
-): string {
-  const time = `${String(sched.hour ?? 0).padStart(2, "0")}:${String(sched.minute ?? 0).padStart(2, "0")}`;
-  const wd = sched.weekday;
-  if (wd === undefined) return `daily ${time}`;
-  if (typeof wd === "number") return `${weekdayName(wd)} ${time}`;
-  return `${wd.map(weekdayName).join(",")} ${time}`;
-}
+// ── Workflow execution ─────────────────────────────────────────────
 
-// ── Sorting ────────────────────────────────────────────────────────
+const KILL_GRACE = 5_000;
 
-type SortKey = "schedule" | "name";
-const SORT_KEYS: SortKey[] = ["schedule", "name"];
-
-function scheduleMinutes(wf: Workflow): number {
-  return (wf.schedule.hour ?? 0) * 60 + (wf.schedule.minute ?? 0);
-}
-
-function sortEntries(
-  entries: [string, Workflow][],
-  key: SortKey,
-): [string, Workflow][] {
-  return [...entries].sort((a, b) => {
-    switch (key) {
-      case "schedule":
-        return scheduleMinutes(a[1]) - scheduleMinutes(b[1]);
-      case "name":
-        return a[0].localeCompare(b[0]);
-    }
-  });
-}
-
-function parseSortFlag(): SortKey {
-  const idx = process.argv.indexOf("--sort");
-  if (idx === -1) return "schedule";
-  const val = process.argv[idx + 1] as SortKey | undefined;
-  if (!val || !SORT_KEYS.includes(val)) {
-    console.error(
-      `${c.bRed}error${R} --sort must be one of: ${SORT_KEYS.join(", ")}`,
-    );
-    process.exit(1);
-  }
-  return val;
-}
-
-// ── Commands ───────────────────────────────────────────────────────
-
-function cmdList() {
-  const cfg = loadConfig();
-  const entries = sortEntries(Object.entries(cfg.workflows), parseSortFlag());
-  const loaded = loadedLabels();
-
-  console.log("");
-  for (const [name, wf] of entries) {
-    const lbl = label(cfg, name);
-    const registered = loaded.has(lbl);
-
-    const enabledTag = wf.enabled
-      ? `${c.green}enabled${R}`
-      : `${c.dim}disabled${R}`;
-    const registeredTag = registered
-      ? `${c.green}registered${R}`
-      : `${c.red}not registered${R}`;
-    const typeTag = wf.type === "agent"
-      ? `${c.cyan}agent${R}`
-      : `${c.yellow}script${R}`;
-    const sched = formatSchedule(wf.schedule);
-
-    console.log(`  ${c.bold}${name}${R}`);
-    console.log(`  ${enabledTag}  ${registeredTag}  ${typeTag}  ${c.dim}${sched}${R}`);
-    console.log(`  ${c.dim}${wf.description}${R}`);
-    console.log("");
-  }
-}
-
-async function cmdRun(name: string) {
-  const cfg = loadConfig();
-  const wf = cfg.workflows[name];
-  if (!wf) {
-    console.error(
-      `${c.bRed}error${R} unknown workflow: ${c.bold}${name}${R}`,
-    );
-    process.exit(1);
-  }
-
+async function runWorkflow(
+  cfg: Config,
+  name: string,
+  wf: Workflow,
+): Promise<number> {
   const sd = stateDir(cfg);
   const startedAt = new Date().toISOString();
   const t0 = Date.now();
   const timeout = (wf.timeout ?? cfg.meta.default_timeout ?? 3600) * 1000;
-  const KILL_GRACE = 5_000;
-  let code: number;
+
   let proc: ReturnType<typeof Bun.spawn>;
 
   if (wf.type === "agent") {
     const promptPath = resolve(ROOT, wf.prompt!);
     if (!existsSync(promptPath)) {
-      console.error(
-        `${c.bRed}error${R} prompt not found: ${promptPath}`,
-      );
-      process.exit(1);
+      console.error(`${c.bRed}error${R} prompt not found: ${promptPath}`);
+      return 1;
     }
 
     const promptText = readFileSync(promptPath, "utf-8");
@@ -217,49 +174,34 @@ async function cmdRun(name: string) {
     if (wf.model) args.push("-m", wf.model);
     args.push(promptText);
 
-    console.log("");
-    console.log(
-      `${c.cyan}>${R} running ${c.bold}${name}${R} ${c.dim}(agent)${R}`,
-    );
-    proc = Bun.spawn(args, {
-      stdout: "inherit",
-      stderr: "inherit",
-      cwd: ROOT,
-    });
+    console.log(`\n${c.cyan}>${R} running ${c.bold}${name}${R} ${c.dim}(agent)${R}`);
+    proc = Bun.spawn(args, { stdout: "inherit", stderr: "inherit", cwd: ROOT });
   } else {
     const scriptPath = resolve(ROOT, wf.script!);
     if (!existsSync(scriptPath)) {
-      console.error(
-        `${c.bRed}error${R} script not found: ${scriptPath}`,
-      );
-      process.exit(1);
+      console.error(`${c.bRed}error${R} script not found: ${scriptPath}`);
+      return 1;
     }
 
-    console.log("");
-    console.log(
-      `${c.cyan}>${R} running ${c.bold}${name}${R} ${c.dim}(script)${R}`,
-    );
+    console.log(`\n${c.cyan}>${R} running ${c.bold}${name}${R} ${c.dim}(script)${R}`);
     proc = Bun.spawn(["bun", "run", scriptPath], {
-      stdout: "inherit",
-      stderr: "inherit",
-      cwd: ROOT,
+      stdout: "inherit", stderr: "inherit", cwd: ROOT,
     });
   }
 
   const timedOut = await Promise.race([
     proc.exited.then(() => false),
-    new Promise<true>((resolve) => setTimeout(() => resolve(true), timeout)),
+    new Promise<true>((r) => setTimeout(() => r(true), timeout)),
   ]);
 
   if (timedOut) {
-    const dur = formatDuration(timeout);
     console.error(
-      `${c.bYellow}timeout${R} ${c.bold}${name}${R} ${c.dim}exceeded ${dur} — sending SIGTERM${R}`,
+      `${c.bYellow}timeout${R} ${c.bold}${name}${R} ${c.dim}exceeded ${formatDuration(timeout)} — sending SIGTERM${R}`,
     );
     proc.kill("SIGTERM");
     const killed = await Promise.race([
       proc.exited.then(() => true),
-      new Promise<false>((resolve) => setTimeout(() => resolve(false), KILL_GRACE)),
+      new Promise<false>((r) => setTimeout(() => r(false), KILL_GRACE)),
     ]);
     if (!killed) {
       console.error(
@@ -270,24 +212,111 @@ async function cmdRun(name: string) {
     }
   }
 
-  code = proc.exitCode ?? 143;
-
+  const code = proc.exitCode ?? 143;
   const durationMs = Date.now() - t0;
   const entry: RunEntry = { startedAt, exitCode: code, durationMs };
-  const prev = readState(sd, name);
-  writeState(sd, name, entry, prev);
+  writeState(sd, name, entry, readState(sd, name));
 
   const dur = formatDuration(durationMs);
   if (code === 0) {
-    console.log(
-      `${c.green}ok${R} ${c.bold}${name}${R} ${c.dim}completed in ${dur}${R}`,
-    );
+    console.log(`${c.green}ok${R} ${c.bold}${name}${R} ${c.dim}completed in ${dur}${R}`);
   } else {
-    console.error(
-      `${c.bRed}failed${R} ${c.bold}${name}${R} ${c.dim}after ${dur}${R}`,
-    );
+    console.error(`${c.bRed}failed${R} ${c.bold}${name}${R} ${c.dim}after ${dur}${R}`);
+  }
+
+  return code;
+}
+
+// ── Commands ───────────────────────────────────────────────────────
+
+function cmdList() {
+  const cfg = loadConfig();
+
+  console.log("");
+  for (const [name, sched] of Object.entries(cfg.schedules)) {
+    const enabledTag = sched.enabled
+      ? `${c.green}enabled${R}`
+      : `${c.dim}disabled${R}`;
+    const time = fmtTime(sched.time.hour, sched.time.minute);
+
+    console.log(`  ${c.bold}${name}${R}  ${enabledTag}  ${c.dim}${time}${R}`);
+    for (const wfName of sched.workflows) {
+      const wf = cfg.workflows[wfName];
+      const typeTag = wf.type === "agent" ? `${c.cyan}agent${R}` : `${c.yellow}script${R}`;
+      const dur = wf.timeout ? formatDuration(wf.timeout * 1000) : "default";
+      console.log(`    ${c.dim}→${R} ${wfName}  ${typeTag}  ${c.dim}timeout ${dur}${R}`);
+    }
+    console.log("");
+  }
+}
+
+async function cmdRun(name: string) {
+  const cfg = loadConfig();
+  const wf = cfg.workflows[name];
+  if (!wf) {
+    console.error(`${c.bRed}error${R} unknown workflow: ${c.bold}${name}${R}`);
+    process.exit(1);
+  }
+
+  const sleepDisabled = disableSleep();
+  const cleanup = () => { if (sleepDisabled) enableSleep(); };
+
+  process.on("SIGTERM", () => { cleanup(); process.exit(143); });
+  process.on("SIGINT", () => { cleanup(); process.exit(130); });
+  process.on("SIGHUP", () => { cleanup(); process.exit(129); });
+
+  let code: number;
+  try {
+    code = await runWorkflow(cfg, name, wf);
+  } finally {
+    cleanup();
   }
   process.exit(code);
+}
+
+async function cmdRunAll(scheduleName: string) {
+  const cfg = loadConfig();
+  const sched = cfg.schedules[scheduleName];
+  if (!sched) {
+    console.error(`${c.bRed}error${R} unknown schedule: ${c.bold}${scheduleName}${R}`);
+    process.exit(1);
+  }
+
+  const t0 = Date.now();
+  const sleepDisabled = disableSleep();
+  const cleanup = () => { if (sleepDisabled) enableSleep(); };
+
+  process.on("SIGTERM", () => { cleanup(); process.exit(143); });
+  process.on("SIGINT", () => { cleanup(); process.exit(130); });
+  process.on("SIGHUP", () => { cleanup(); process.exit(129); });
+
+  console.log(`\n${c.bold}${scheduleName}${R} ${c.dim}${sched.workflows.length} workflows${R}`);
+
+  let passed = 0;
+  let failed = 0;
+
+  try {
+    for (const wfName of sched.workflows) {
+      const wf = cfg.workflows[wfName];
+      const code = await runWorkflow(cfg, wfName, wf);
+      if (code === 0) passed++;
+      else failed++;
+    }
+  } finally {
+    cleanup();
+  }
+
+  const dur = formatDuration(Date.now() - t0);
+  console.log("");
+  if (failed === 0) {
+    console.log(`${c.green}all ${passed} workflows passed${R} ${c.dim}in ${dur}${R}`);
+  } else {
+    console.log(
+      `${c.green}${passed} passed${R}, ${c.bRed}${failed} failed${R} ${c.dim}in ${dur}${R}`,
+    );
+  }
+
+  process.exit(failed > 0 ? 1 : 0);
 }
 
 function cmdInstall() {
@@ -298,102 +327,137 @@ function cmdInstall() {
   ensureDir(logs);
   ensureDir(stateDir(cfg));
 
-  console.log("");
-  let ok = 0;
-  let fail = 0;
+  // clean up legacy per-workflow plists
+  const loaded = loadedLabels();
+  for (const name of Object.keys(cfg.workflows)) {
+    const lbl = `${cfg.meta.label_prefix}.${name}`;
+    if (loaded.has(lbl)) bootoutLabel(lbl);
+    const legacy = resolve(LAUNCH_AGENTS, `${lbl}.plist`);
+    if (existsSync(legacy)) {
+      unlinkSync(legacy);
+      console.log(`  ${c.dim}-${R}  ${name}  ${c.dim}removed legacy plist${R}`);
+    }
+  }
+  // clean up old single-runner plists
+  for (const oldLbl of [`${cfg.meta.label_prefix}.wf-runner`, `${cfg.meta.label_prefix}.wf-sleep-watchdog`]) {
+    if (loaded.has(oldLbl)) bootoutLabel(oldLbl);
+    const old = resolve(LAUNCH_AGENTS, `${oldLbl}.plist`);
+    if (existsSync(old)) unlinkSync(old);
+  }
 
-  for (const [name, wf] of Object.entries(cfg.workflows)) {
-    if (!wf.enabled) {
-      console.log(
-        `  ${c.dim}-${R}  ${name}  ${c.dim}skipped (disabled)${R}`,
-      );
+  console.log("");
+
+  for (const [name, sched] of Object.entries(cfg.schedules)) {
+    if (!sched.enabled) {
+      console.log(`  ${c.dim}-${R}  ${name}  ${c.dim}skipped (disabled)${R}`);
       continue;
     }
 
-    const lbl = label(cfg, name);
-    const plist = generatePlist(cfg, name, wf, ROOT, logs);
-    const localPath = resolve(dir, `${lbl}.plist`);
-    const agentPath = resolve(LAUNCH_AGENTS, `${lbl}.plist`);
-
-    writeFileSync(localPath, plist);
-    writeFileSync(agentPath, plist);
-
-    Bun.spawnSync(["launchctl", "bootout", `gui/${UID}/${lbl}`], {
-      stdout: "ignore",
-      stderr: "ignore",
-    });
-    const result = Bun.spawnSync(
-      ["launchctl", "bootstrap", `gui/${UID}`, agentPath],
-      { stdout: "ignore", stderr: "pipe" },
-    );
-
-    if (result.exitCode === 0) {
+    // runner plist
+    const rnLbl = scheduleRunnerLabel(cfg, name);
+    const rnPlist = generateRunnerPlist(cfg, name, sched.time, ROOT, logs);
+    const rnLocal = resolve(dir, `${rnLbl}.plist`);
+    const rnAgent = resolve(LAUNCH_AGENTS, `${rnLbl}.plist`);
+    writeFileSync(rnLocal, rnPlist);
+    writeFileSync(rnAgent, rnPlist);
+    bootoutLabel(rnLbl);
+    if (bootstrapPlist(rnAgent)) {
+      const time = fmtTime(sched.time.hour, sched.time.minute);
       console.log(
-        `  ${c.green}+${R}  ${c.bold}${name}${R}  ${c.dim}installed${R}`,
+        `  ${c.green}+${R}  ${c.bold}${name}${R}  ${c.dim}${time} → ${sched.workflows.length} workflows${R}`,
       );
-      ok++;
     } else {
+      console.log(`  ${c.red}x${R}  ${c.bold}${name}${R}  ${c.red}failed to install${R}`);
+    }
+
+    // watchdog plist
+    const wdTime = sched.watchdog ?? defaultWatchdogTime(cfg, sched);
+    const wdLbl = scheduleWatchdogLabel(cfg, name);
+    const wdPlist = generateWatchdogPlist(cfg, name, wdTime, logs);
+    const wdLocal = resolve(dir, `${wdLbl}.plist`);
+    const wdAgent = resolve(LAUNCH_AGENTS, `${wdLbl}.plist`);
+    writeFileSync(wdLocal, wdPlist);
+    writeFileSync(wdAgent, wdPlist);
+    bootoutLabel(wdLbl);
+    if (bootstrapPlist(wdAgent)) {
+      const time = fmtTime(wdTime.hour, wdTime.minute);
       console.log(
-        `  ${c.red}x${R}  ${c.bold}${name}${R}  ${c.red}failed to install${R}`,
+        `  ${c.green}+${R}  ${c.bold}${name}-watchdog${R}  ${c.dim}${time} → disablesleep 0${R}`,
       );
-      fail++;
+    } else {
+      console.log(`  ${c.red}x${R}  ${c.bold}${name}-watchdog${R}  ${c.red}failed to install${R}`);
     }
   }
 
   configureScheduledWake(cfg);
 
-  console.log("");
-  if (fail === 0) {
-    console.log(`${c.green}${ok} workflows installed${R}`);
-  } else {
-    console.log(
-      `${c.green}${ok} installed${R}, ${c.red}${fail} failed${R}`,
-    );
+  const enabled = Object.values(cfg.schedules).filter((s) => s.enabled).length;
+  console.log(`\n${c.green}installed${R} ${c.dim}${enabled} schedule(s)${R}\n`);
+}
+
+function defaultWatchdogTime(
+  cfg: Config,
+  sched: Config["schedules"][string],
+): { hour: number; minute: number } {
+  let totalSeconds = 0;
+  for (const wfName of sched.workflows) {
+    totalSeconds += cfg.workflows[wfName].timeout ?? cfg.meta.default_timeout ?? 3600;
   }
-  console.log("");
+  const bufferMinutes = 15;
+  const totalMinutes = Math.ceil(totalSeconds / 60) + bufferMinutes;
+  const startMinutes = sched.time.hour * 60 + sched.time.minute;
+  const wdMinutes = (startMinutes + totalMinutes) % (24 * 60);
+  return {
+    hour: Math.floor(wdMinutes / 60),
+    minute: wdMinutes % 60,
+  };
 }
 
 function cmdUninstall() {
   const cfg = loadConfig();
 
   console.log("");
-  for (const [name] of Object.entries(cfg.workflows)) {
-    const lbl = label(cfg, name);
-    const agentPath = resolve(LAUNCH_AGENTS, `${lbl}.plist`);
 
-    const bootout = Bun.spawnSync(
-      ["launchctl", "bootout", `gui/${UID}/${lbl}`],
-      { stdout: "ignore", stderr: "ignore" },
-    );
-    const wasLoaded = bootout.exitCode === 0;
-    const hadPlist = existsSync(agentPath);
+  const loaded = loadedLabels();
 
-    if (hadPlist) unlinkSync(agentPath);
-
-    if (wasLoaded && hadPlist) {
-      console.log(
-        `  ${c.green}-${R}  ${c.bold}${name}${R}  ${c.dim}removed${R}`,
-      );
-    } else if (hadPlist) {
-      console.log(
-        `  ${c.yellow}-${R}  ${c.bold}${name}${R}  ${c.dim}removed (was not active)${R}`,
-      );
-    } else if (wasLoaded) {
-      console.log(
-        `  ${c.yellow}-${R}  ${c.bold}${name}${R}  ${c.dim}stopped (no plist found)${R}`,
-      );
-    } else {
-      console.log(
-        `  ${c.dim}-${R}  ${name}  ${c.dim}not installed${R}`,
-      );
+  for (const name of Object.keys(cfg.schedules)) {
+    const rnLbl = scheduleRunnerLabel(cfg, name);
+    const rnAgent = resolve(LAUNCH_AGENTS, `${rnLbl}.plist`);
+    bootoutLabel(rnLbl);
+    if (existsSync(rnAgent)) {
+      unlinkSync(rnAgent);
+      console.log(`  ${c.green}-${R}  ${c.bold}${name}${R}  ${c.dim}removed${R}`);
     }
+
+    const wdLbl = scheduleWatchdogLabel(cfg, name);
+    const wdAgent = resolve(LAUNCH_AGENTS, `${wdLbl}.plist`);
+    bootoutLabel(wdLbl);
+    if (existsSync(wdAgent)) {
+      unlinkSync(wdAgent);
+      console.log(`  ${c.green}-${R}  ${c.bold}${name}-watchdog${R}  ${c.dim}removed${R}`);
+    }
+  }
+
+  // clean up legacy per-workflow plists
+  for (const name of Object.keys(cfg.workflows)) {
+    const lbl = `${cfg.meta.label_prefix}.${name}`;
+    if (loaded.has(lbl)) bootoutLabel(lbl);
+    const legacy = resolve(LAUNCH_AGENTS, `${lbl}.plist`);
+    if (existsSync(legacy)) {
+      unlinkSync(legacy);
+      console.log(`  ${c.green}-${R}  ${c.bold}${name}${R}  ${c.dim}removed legacy plist${R}`);
+    }
+  }
+  // clean up old single-runner plists
+  for (const oldLbl of [`${cfg.meta.label_prefix}.wf-runner`, `${cfg.meta.label_prefix}.wf-sleep-watchdog`]) {
+    if (loaded.has(oldLbl)) bootoutLabel(oldLbl);
+    const old = resolve(LAUNCH_AGENTS, `${oldLbl}.plist`);
+    if (existsSync(old)) unlinkSync(old);
   }
 
   const dir = plistDir(cfg);
   if (existsSync(dir)) {
-    for (const f of readdirSync(dir)) {
-      unlinkSync(resolve(dir, f));
-    }
+    for (const f of readdirSync(dir)) unlinkSync(resolve(dir, f));
   }
 
   clearScheduledWake();
@@ -404,51 +468,48 @@ function cmdStatus() {
   const cfg = loadConfig();
   const loaded = loadedLabels();
   const sd = stateDir(cfg);
-  const entries = sortEntries(Object.entries(cfg.workflows), parseSortFlag());
 
   console.log("");
-  for (const [name, wf] of entries) {
-    const lbl = label(cfg, name);
-    const registered = loaded.has(lbl);
 
-    const enabledTag = wf.enabled
+  for (const [name, sched] of Object.entries(cfg.schedules)) {
+    const rnRegistered = loaded.has(scheduleRunnerLabel(cfg, name));
+    const wdRegistered = loaded.has(scheduleWatchdogLabel(cfg, name));
+    const enabledTag = sched.enabled
       ? `${c.green}enabled${R}`
       : `${c.dim}disabled${R}`;
-    const activeTag = registered
+    const rnTag = rnRegistered
       ? `${c.green}scheduled${R}`
-      : `${c.dim}not scheduled${R}`;
+      : `${c.red}not scheduled${R}`;
+    const wdTag = wdRegistered
+      ? `${c.green}ok${R}`
+      : `${c.red}missing${R}`;
+    const time = fmtTime(sched.time.hour, sched.time.minute);
 
-    const state = readState(sd, name);
+    console.log(
+      `  ${c.bold}${name}${R}  ${enabledTag}  ${rnTag}  ${c.dim}${time}${R}  ${c.dim}watchdog ${wdTag}${R}`,
+    );
 
-    let warn = "";
-    if (wf.enabled && !registered) {
-      warn = `  ${c.bYellow}⚠ enabled but not registered — run wf install${R}`;
-    } else if (!wf.enabled && registered) {
-      warn = `  ${c.bYellow}⚠ disabled but still registered — run wf uninstall or wf disable ${name}${R}`;
+    if (sched.enabled && !rnRegistered) {
+      console.log(`  ${c.bYellow}run wf install to register${R}`);
     }
 
-    console.log(`  ${c.bold}${name}${R}  ${enabledTag}  ${activeTag}`);
-
-    if (warn) console.log(warn);
-
-    if (state) {
-      const ago = relativeTime(state.lastRun);
-      const dur = formatDuration(state.lastDurationMs);
-      const healthTag =
-        state.lastExitCode === 0
+    for (const wfName of sched.workflows) {
+      const state = readState(sd, wfName);
+      if (state) {
+        const ago = relativeTime(state.lastRun);
+        const dur = formatDuration(state.lastDurationMs);
+        const healthTag = state.lastExitCode === 0
           ? `${c.green}ok${R}`
           : `${c.red}failed${R}`;
-
-      let detail = `  ${c.dim}last run ${ago}${R}  ${healthTag}  ${c.dim}took ${dur}${R}`;
-
-      if (state.consecutiveFailures > 1) {
-        detail += `  ${c.bRed}${state.consecutiveFailures} failures in a row${R}`;
+        let detail = `    ${c.dim}→${R} ${wfName}  ${healthTag}  ${c.dim}${ago}, took ${dur}${R}`;
+        if (state.consecutiveFailures > 1) {
+          detail += `  ${c.bRed}${state.consecutiveFailures}x${R}`;
+        }
+        console.log(detail);
+      } else {
+        console.log(`    ${c.dim}→${R} ${wfName}  ${c.dim}no runs yet${R}`);
       }
-      console.log(detail);
-    } else {
-      console.log(`  ${c.dim}no runs yet${R}`);
     }
-
     console.log("");
   }
 
@@ -457,14 +518,32 @@ function cmdStatus() {
 
 function cmdLogs(name: string) {
   const cfg = loadConfig();
+  const logs = logDir(cfg);
+
+  // check if it's a schedule name
+  if (cfg.schedules[name]) {
+    const outLog = resolve(logs, `${name}.out.log`);
+    const errLog = resolve(logs, `${name}.err.log`);
+    let found = false;
+    if (existsSync(outLog)) {
+      console.log(`\n${c.bold}stdout${R} ${c.dim}${name}${R}\n`);
+      console.log(readFileSync(outLog, "utf-8"));
+      found = true;
+    }
+    if (existsSync(errLog)) {
+      console.log(`\n${c.bold}stderr${R} ${c.dim}${name}${R}\n`);
+      console.log(readFileSync(errLog, "utf-8"));
+      found = true;
+    }
+    if (!found) console.log(`\n${c.dim}no logs for ${name}${R}`);
+    return;
+  }
+
   if (!cfg.workflows[name]) {
-    console.error(
-      `${c.bRed}error${R} unknown workflow: ${c.bold}${name}${R}`,
-    );
+    console.error(`${c.bRed}error${R} unknown workflow or schedule: ${c.bold}${name}${R}`);
     process.exit(1);
   }
 
-  const logs = logDir(cfg);
   const outLog = resolve(logs, `${name}.out.log`);
   const errLog = resolve(logs, `${name}.err.log`);
   let found = false;
@@ -480,81 +559,7 @@ function cmdLogs(name: string) {
     found = true;
   }
   if (!found) {
-    console.log("");
-    console.log(`${c.dim}no logs for ${name}${R}`);
-  }
-}
-
-function cmdEnable(name: string) {
-  const cfg = loadConfig();
-  const wf = cfg.workflows[name];
-  if (!wf) {
-    console.error(
-      `${c.bRed}error${R} unknown workflow: ${c.bold}${name}${R}`,
-    );
-    process.exit(1);
-  }
-
-  const lbl = label(cfg, name);
-  const logs = logDir(cfg);
-  const agentPath = resolve(LAUNCH_AGENTS, `${lbl}.plist`);
-
-  if (!existsSync(agentPath)) {
-    ensureDir(logs);
-    const plist = generatePlist(cfg, name, wf, ROOT, logs);
-    writeFileSync(agentPath, plist);
-  }
-
-  Bun.spawnSync(["launchctl", "bootout", `gui/${UID}/${lbl}`], {
-    stdout: "ignore",
-    stderr: "ignore",
-  });
-  const result = Bun.spawnSync(
-    ["launchctl", "bootstrap", `gui/${UID}`, agentPath],
-    { stdout: "ignore", stderr: "pipe" },
-  );
-
-  if (result.exitCode === 0) {
-    console.log("");
-    console.log(
-      `${c.green}+${R} ${c.bold}${name}${R} ${c.dim}enabled${R}`,
-    );
-    configureScheduledWake(cfg);
-  } else {
-    console.log("");
-    console.error(
-      `${c.bRed}error${R} failed to enable ${c.bold}${name}${R}`,
-    );
-    process.exit(1);
-  }
-}
-
-function cmdDisable(name: string) {
-  const cfg = loadConfig();
-  if (!cfg.workflows[name]) {
-    console.error(
-      `${c.bRed}error${R} unknown workflow: ${c.bold}${name}${R}`,
-    );
-    process.exit(1);
-  }
-
-  const lbl = label(cfg, name);
-  const result = Bun.spawnSync(
-    ["launchctl", "bootout", `gui/${UID}/${lbl}`],
-    { stdout: "ignore", stderr: "pipe" },
-  );
-
-  if (result.exitCode === 0) {
-    console.log("");
-    console.log(
-      `${c.green}-${R} ${c.bold}${name}${R} ${c.dim}disabled${R}`,
-    );
-    configureScheduledWake(cfg, name);
-  } else {
-    console.log("");
-    console.error(
-      `${c.bYellow}warn${R} ${c.bold}${name}${R} ${c.dim}was not active${R}`,
-    );
+    console.log(`\n${c.dim}no logs for ${name}${R}`);
   }
 }
 
@@ -564,18 +569,14 @@ const B = c.bold, D = c.dim, C = c.cyan;
 const USAGE = `
   ${B}wf${R} ${D}— workflow scheduler${R}
 
-  ${B}wf list${R}              ${D}show all workflows${R}
-  ${B}wf status${R}            ${D}show runtime health${R}
-  ${B}wf run${R} ${C}<name>${R}        ${D}run a workflow now${R}
-  ${B}wf logs${R} ${C}<name>${R}       ${D}show logs${R}
+  ${B}wf list${R}                    ${D}show schedules + workflows${R}
+  ${B}wf status${R}                  ${D}show runtime health${R}
+  ${B}wf run${R} ${C}<workflow>${R}          ${D}run a single workflow${R}
+  ${B}wf run-all${R} ${C}<schedule>${R}      ${D}run all workflows in a schedule${R}
+  ${B}wf logs${R} ${C}<name>${R}             ${D}show logs (schedule or workflow name)${R}
 
-  ${B}wf install${R}           ${D}install all into launchd${R}
-  ${B}wf uninstall${R}         ${D}remove all from launchd${R}
-  ${B}wf enable${R} ${C}<name>${R}      ${D}activate a workflow${R}
-  ${B}wf disable${R} ${C}<name>${R}     ${D}deactivate a workflow${R}
-
-  ${D}options${R}
-  ${B}--sort${R} ${C}<key>${R}         ${D}sort list/status (schedule, name) [default: schedule]${R}
+  ${B}wf install${R}                 ${D}install schedules into launchd${R}
+  ${B}wf uninstall${R}               ${D}remove all from launchd${R}
 `;
 
 function requireArg(cmd: string): string {
@@ -590,13 +591,12 @@ function requireArg(cmd: string): string {
 const cmd = process.argv[2];
 
 switch (cmd) {
-  case "list":    cmdList(); break;
-  case "status":  cmdStatus(); break;
-  case "install": cmdInstall(); break;
+  case "list":      cmdList(); break;
+  case "status":    cmdStatus(); break;
+  case "install":   cmdInstall(); break;
   case "uninstall": cmdUninstall(); break;
-  case "run":     await cmdRun(requireArg("run")); break;
-  case "logs":    cmdLogs(requireArg("logs")); break;
-  case "enable":  cmdEnable(requireArg("enable")); break;
-  case "disable": cmdDisable(requireArg("disable")); break;
-  default:        console.log(USAGE); break;
+  case "run":       await cmdRun(requireArg("run")); break;
+  case "run-all":   await cmdRunAll(requireArg("run-all")); break;
+  case "logs":      cmdLogs(requireArg("logs")); break;
+  default:          console.log(USAGE); break;
 }
