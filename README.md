@@ -101,10 +101,10 @@ qmd collection add ~/Vaults/Memory --name memory
 wf install
 ```
 
-This registers two launchd agents:
+This registers two launchd agents per enabled schedule:
 
-- **`wf-runner`** — triggers `wf run <schedule>` at the scheduled time (02:00 by default)
-- **`wf-sleep-watchdog`** — runs `pmset disablesleep 0` at 06:00 daily as a safety net
+- **`wf-<schedule>`** — triggers `wf run <schedule>` at the scheduled time (e.g., 02:00 for `nightly`)
+- **`wf-<schedule>-watchdog`** — runs `pmset disablesleep 0` at the watchdog time as a safety net
 
 It also sets a `pmset repeat wakeorpoweron` so the Mac wakes from sleep to run workflows. This step prompts for sudo (one time).
 
@@ -117,32 +117,28 @@ wf run nightly     # manual test — runs all workflows now
 
 ## Configuration
 
-All workflows are defined in `workflows.toml`:
+All workflows and schedules are defined in `workflows.toml`:
 
 ```toml
 [meta]
 label_prefix = "com.example"
 default_timeout = 3600
 
+[schedules.nightly]
+time = { hour = 2, minute = 0 }
+watchdog = { hour = 6, minute = 0 }     # optional, auto-derived if omitted
+enabled = true
+workflows = ["my-workflow"]
+
 [workflows.my-workflow]
 type = "agent"                          # or "script"
 prompt = "prompts/my-workflow.md"        # agent-type: path to prompt markdown
 # script = "scripts/my-script.ts"       # script-type: path to script
 description = "What this workflow does"
-enabled = true
 timeout = 1800                          # optional, overrides default_timeout
-schedule = { hour = 3, minute = 0 }     # determines execution order
 ```
 
-The `schedule` field determines **execution order** within a batch run (earliest first). All enabled workflows run sequentially.
-
-### Schedule options
-
-```toml
-schedule = { hour = 3, minute = 30 }                    # daily at 03:30
-schedule = { hour = 8, minute = 0, weekday = [1,2,3,4,5] }  # weekdays at 08:00
-schedule = { hour = 0, minute = 0, day = 1 }             # 1st of each month
-```
+Schedules group workflows into ordered sequential batches. Workflows run in array order — the next starts immediately after the previous finishes.
 
 ## Project structure
 
