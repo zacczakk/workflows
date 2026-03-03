@@ -8,7 +8,7 @@ Scheduled AI agent workflows for Obsidian vault maintenance. macOS-native, launc
 
 ```
 pmset wakeorpoweron  →  launchd fires at 02:00
-                         └── wf run-all
+                         └── wf run nightly
                               ├── disablesleep 1
                               ├── vault-embeddings     (script)
                               ├── vault-inbox-processing (agent)
@@ -19,7 +19,7 @@ pmset wakeorpoweron  →  launchd fires at 02:00
 watchdog at 06:00    →  disablesleep 0 (safety net)
 ```
 
-Workflows run **sequentially** in schedule order — the next starts immediately after the previous finishes. A single launchd plist triggers `wf run-all` at the earliest schedule time. Per-workflow timeouts still apply.
+Workflows run **sequentially** in schedule order — the next starts immediately after the previous finishes. A single launchd plist triggers `wf run <schedule>` at the earliest schedule time. Per-workflow timeouts still apply.
 
 Sleep is disabled for the duration of the batch and re-enabled afterward (via `finally` block + signal traps). A watchdog plist at 06:00 guarantees sleep re-enables even if `wf` crashes.
 
@@ -38,14 +38,11 @@ Sleep is disabled for the duration of the batch and re-enabled afterward (via `f
 ```
 wf list              show all workflows
 wf status            show runtime health
-wf run <name>        run a single workflow
-wf run-all           run all enabled workflows sequentially
-wf logs <name>       show logs (or "runner" for batch logs)
+wf run <name>        run a schedule or single workflow
+wf logs <name>       show logs (schedule or workflow name)
 
 wf install           install into launchd + schedule wake
 wf uninstall         remove from launchd + clear wake
-
---sort <key>         sort list/status (schedule, name)
 ```
 
 ## Setup
@@ -106,7 +103,7 @@ wf install
 
 This registers two launchd agents:
 
-- **`wf-runner`** — triggers `wf run-all` at the earliest workflow schedule time (02:00 by default)
+- **`wf-runner`** — triggers `wf run <schedule>` at the scheduled time (02:00 by default)
 - **`wf-sleep-watchdog`** — runs `pmset disablesleep 0` at 06:00 daily as a safety net
 
 It also sets a `pmset repeat wakeorpoweron` so the Mac wakes from sleep to run workflows. This step prompts for sudo (one time).
@@ -115,7 +112,7 @@ It also sets a `pmset repeat wakeorpoweron` so the Mac wakes from sleep to run w
 
 ```bash
 wf status          # should show runner + watchdog as scheduled
-wf run-all         # manual test — runs all workflows now
+wf run nightly     # manual test — runs all workflows now
 ```
 
 ## Configuration
@@ -137,7 +134,7 @@ timeout = 1800                          # optional, overrides default_timeout
 schedule = { hour = 3, minute = 0 }     # determines execution order
 ```
 
-The `schedule` field determines **execution order** within `run-all` (earliest first). All enabled workflows run sequentially in a single batch.
+The `schedule` field determines **execution order** within a batch run (earliest first). All enabled workflows run sequentially.
 
 ### Schedule options
 
@@ -158,7 +155,7 @@ src/
   types.ts              interfaces
   validate.ts           TOML config validation
   state.ts              run state + formatting helpers
-  plist.ts              nvm resolution + launchd plist generation
+  plist.ts              launchd plist generation
   wake.ts               scheduled wake via pmset (sleep-proof scheduling)
 bin/wf                  compiled binary (gitignored)
 plists/                 generated launchd plists (gitignored)
@@ -171,7 +168,7 @@ state/                  JSON run state per workflow (gitignored)
 Workflows run overnight with the Mac lid closed. Three layers ensure reliability:
 
 1. **`pmset repeat wakeorpoweron`** — wakes the Mac at the scheduled time (set during `wf install`)
-2. **`pmset disablesleep`** — prevents clamshell sleep while workflows execute (`wf run`/`wf run-all` toggle this automatically via passwordless sudo)
+2. **`pmset disablesleep`** — prevents clamshell sleep while workflows execute (`wf run` toggles this automatically via passwordless sudo)
 3. **Sleep watchdog** — a launchd job at 06:00 that runs `pmset disablesleep 0` as a safety net in case `wf` crashes without re-enabling sleep
 
 The `disablesleep` flag is runtime-only (not persisted) — a reboot always clears it.

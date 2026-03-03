@@ -13,7 +13,7 @@ workflows.toml          defines workflows + schedules
        |
    launchd fires        one runner plist per schedule, one watchdog per schedule
        |
-   wf run-all <sched>   disablesleep → run workflows sequentially → re-enable sleep
+    wf run <sched>       disablesleep → run workflows sequentially → re-enable sleep
        |
    type=agent           wf reads prompt, spawns opencode run
    type=script          wf spawns bun run scripts/<name>.ts
@@ -35,7 +35,7 @@ workflows.toml          defines workflows + schedules
 Three layers prevent clamshell sleep from freezing overnight workflows:
 
 1. **`pmset repeat wakeorpoweron`** — wakes Mac at schedule time (set by `wf install`)
-2. **`pmset disablesleep`** — toggled by `wf run`/`wf run-all` via passwordless sudo (scoped to exactly two commands)
+2. **`pmset disablesleep`** — toggled by `wf run` via passwordless sudo (scoped to exactly two commands)
 3. **Sleep watchdog** — launchd plist that runs `pmset disablesleep 0` as safety net
 
 The `disablesleep` flag is runtime-only (resets on reboot). Sudoers config in `/etc/sudoers.d/wf-pmset` grants NOPASSWD for exactly:
@@ -63,7 +63,7 @@ Previous approach (`caffeinate -s`) only prevented idle sleep, not clamshell sle
     types.ts                          # interfaces (Workflow, ScheduleDef, Config, etc.)
     validate.ts                       # TOML config validation
     state.ts                          # run state read/write + formatting helpers
-    plist.ts                          # nvm resolution + plist generation (runner + watchdog)
+    plist.ts                          # launchd plist generation (runner + watchdog)
     wake.ts                           # pmset wake scheduling
   bin/
     wf                                # compiled binary (gitignored)
@@ -116,7 +116,7 @@ workflows = [
 ]
 ```
 
-- `time` — when launchd fires `wf run-all <schedule>`
+- `time` — when launchd fires `wf run <schedule>`
 - `watchdog` — safety-net plist that runs `pmset disablesleep 0` (auto-derived if omitted: trigger + sum of timeouts + 15min buffer)
 - `workflows` — ordered list; executed sequentially, next starts immediately after previous finishes
 - `enabled` — whether `wf install` registers this schedule
@@ -128,7 +128,7 @@ workflows = [
 
 ## Prerequisites
 
-All installed and verified on PATH (via login shell with nvm eager-loaded):
+All installed and on PATH via `~/.zprofile` (sourced by launchd login shell):
 
 | Tool | Location | Purpose |
 |------|----------|---------|
@@ -148,19 +148,12 @@ qmd embed
 ### Node version resolution
 QMD uses `better-sqlite3` with native addons. Must run under Node >= 22 (MODULE_VERSION 127).
 
-The CLI resolves the nvm node version dynamically at plist generation time (`wf install`):
-1. Reads `~/.nvm/alias/default` and follows the alias chain (max 5 hops)
-2. Matches against installed versions in `~/.nvm/versions/node/`
-3. Falls back to latest installed version with a warning if resolution fails
-
-After `nvm install` of a new node version, run `wf install` to regenerate plists with the updated path.
-
-**Gotcha**: launchd jobs run in a non-interactive shell where nvm is NOT loaded. The plist includes the resolved nvm node bin in PATH.
+`~/.zprofile` resolves nvm's default alias to a static PATH entry at shell startup. The launchd plist launches `wf` via `/bin/zsh -lc`, which sources `.zprofile` and gets the correct Node version automatically. No manual `wf install` needed after `nvm install`.
 
 ## Execution flow
 
 ```
-launchd fires at 02:00 → wf run-all nightly
+launchd fires at 02:00 → /bin/zsh -lc "wf run nightly"
   → reads + validates workflows.toml
   → resolves schedule → ordered workflow list
   → disablesleep 1 (passwordless sudo)
@@ -269,18 +262,17 @@ Reads all Memory vault notes, distills into `MEMORY.md` at vault root. Runs afte
 | `wf status` | Runtime view: schedule health, per-workflow last run, failure streaks |
 | `wf install` | Generate runner + watchdog plists per schedule, register with launchd, schedule wake |
 | `wf uninstall` | Remove all plists from launchd, clear wake schedule |
-| `wf run <name>` | Execute single workflow with sleep toggle |
-| `wf run-all <sched>` | Execute all workflows in schedule sequentially with single sleep bracket |
+| `wf run <name>` | Execute a schedule (all workflows) or single workflow with sleep toggle |
 | `wf logs <name>` | Show stdout+stderr logs (accepts workflow name or schedule name) |
 
 ### Implementation
 - **Source layout**: `src/wf.ts` (CLI + commands), `src/types.ts` (interfaces), `src/validate.ts` (config validation), `src/state.ts` (run state), `src/plist.ts` (plist generation), `src/wake.ts` (pmset wake scheduling).
 - **TOML**: `import { TOML } from "bun"` — built-in parser, zero deps.
 - **Config validation**: Schema-level checks after parse (type enum, field exclusivity, timeout, schedule→workflow references).
-- **Plist generation**: `src/plist.ts` generates two plist types: `generateRunnerPlist()` (fires `wf run-all`) and `generateWatchdogPlist()` (fires `pmset disablesleep 0`).
+- **Plist generation**: `src/plist.ts` generates two plist types: `generateRunnerPlist()` (login shell → `wf run <schedule>`) and `generateWatchdogPlist()` (fires `pmset disablesleep 0`).
 - **Labels**: `<prefix>.wf-<schedule>` for runners, `<prefix>.wf-<schedule>-watchdog` for watchdogs.
 - **Legacy cleanup**: `wf install` and `wf uninstall` remove old per-workflow plists from previous architecture.
-- **Environment in plists**: PATH (dynamically resolved nvm node + bun + homebrew + system), HOME, NVM_DIR.
+- **Environment in plists**: Inherited from login shell (`/bin/zsh -lc`) which sources `~/.zprofile`. No hardcoded env vars in plist.
 - **UID**: Resolved via `id -u` subprocess, with env override.
 - **ANSI output**: Colored terminal output — green for healthy/enabled, red for errors/failures, yellow for warnings, cyan for agent type, dim for secondary info, bold for names.
 - **No npm deps** — pure Bun APIs.

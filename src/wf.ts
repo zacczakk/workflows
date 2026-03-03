@@ -252,9 +252,51 @@ function cmdList() {
 
 async function cmdRun(name: string) {
   const cfg = loadConfig();
+  const sched = cfg.schedules[name];
+
+  // Schedule name → run all workflows in that schedule
+  if (sched) {
+    const t0 = Date.now();
+    const sleepDisabled = disableSleep();
+    const cleanup = () => { if (sleepDisabled) enableSleep(); };
+
+    process.on("SIGTERM", () => { cleanup(); process.exit(143); });
+    process.on("SIGINT", () => { cleanup(); process.exit(130); });
+    process.on("SIGHUP", () => { cleanup(); process.exit(129); });
+
+    console.log(`\n${c.bold}${name}${R} ${c.dim}${sched.workflows.length} workflows${R}`);
+
+    let passed = 0;
+    let failed = 0;
+
+    try {
+      for (const wfName of sched.workflows) {
+        const wf = cfg.workflows[wfName];
+        const code = await runWorkflow(cfg, wfName, wf);
+        if (code === 0) passed++;
+        else failed++;
+      }
+    } finally {
+      cleanup();
+    }
+
+    const dur = formatDuration(Date.now() - t0);
+    console.log("");
+    if (failed === 0) {
+      console.log(`${c.green}all ${passed} workflows passed${R} ${c.dim}in ${dur}${R}`);
+    } else {
+      console.log(
+        `${c.green}${passed} passed${R}, ${c.bRed}${failed} failed${R} ${c.dim}in ${dur}${R}`,
+      );
+    }
+
+    process.exit(failed > 0 ? 1 : 0);
+  }
+
+  // Workflow name → run single workflow
   const wf = cfg.workflows[name];
   if (!wf) {
-    console.error(`${c.bRed}error${R} unknown workflow: ${c.bold}${name}${R}`);
+    console.error(`${c.bRed}error${R} unknown schedule or workflow: ${c.bold}${name}${R}`);
     process.exit(1);
   }
 
@@ -272,51 +314,6 @@ async function cmdRun(name: string) {
     cleanup();
   }
   process.exit(code);
-}
-
-async function cmdRunAll(scheduleName: string) {
-  const cfg = loadConfig();
-  const sched = cfg.schedules[scheduleName];
-  if (!sched) {
-    console.error(`${c.bRed}error${R} unknown schedule: ${c.bold}${scheduleName}${R}`);
-    process.exit(1);
-  }
-
-  const t0 = Date.now();
-  const sleepDisabled = disableSleep();
-  const cleanup = () => { if (sleepDisabled) enableSleep(); };
-
-  process.on("SIGTERM", () => { cleanup(); process.exit(143); });
-  process.on("SIGINT", () => { cleanup(); process.exit(130); });
-  process.on("SIGHUP", () => { cleanup(); process.exit(129); });
-
-  console.log(`\n${c.bold}${scheduleName}${R} ${c.dim}${sched.workflows.length} workflows${R}`);
-
-  let passed = 0;
-  let failed = 0;
-
-  try {
-    for (const wfName of sched.workflows) {
-      const wf = cfg.workflows[wfName];
-      const code = await runWorkflow(cfg, wfName, wf);
-      if (code === 0) passed++;
-      else failed++;
-    }
-  } finally {
-    cleanup();
-  }
-
-  const dur = formatDuration(Date.now() - t0);
-  console.log("");
-  if (failed === 0) {
-    console.log(`${c.green}all ${passed} workflows passed${R} ${c.dim}in ${dur}${R}`);
-  } else {
-    console.log(
-      `${c.green}${passed} passed${R}, ${c.bRed}${failed} failed${R} ${c.dim}in ${dur}${R}`,
-    );
-  }
-
-  process.exit(failed > 0 ? 1 : 0);
 }
 
 function cmdInstall() {
@@ -571,8 +568,7 @@ const USAGE = `
 
   ${B}wf list${R}                    ${D}show schedules + workflows${R}
   ${B}wf status${R}                  ${D}show runtime health${R}
-  ${B}wf run${R} ${C}<workflow>${R}          ${D}run a single workflow${R}
-  ${B}wf run-all${R} ${C}<schedule>${R}      ${D}run all workflows in a schedule${R}
+  ${B}wf run${R} ${C}<name>${R}              ${D}run a schedule or single workflow${R}
   ${B}wf logs${R} ${C}<name>${R}             ${D}show logs (schedule or workflow name)${R}
 
   ${B}wf install${R}                 ${D}install schedules into launchd${R}
@@ -596,7 +592,6 @@ switch (cmd) {
   case "install":   cmdInstall(); break;
   case "uninstall": cmdUninstall(); break;
   case "run":       await cmdRun(requireArg("run")); break;
-  case "run-all":   await cmdRunAll(requireArg("run-all")); break;
   case "logs":      cmdLogs(requireArg("logs")); break;
   default:          console.log(USAGE); break;
 }

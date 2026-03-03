@@ -6,10 +6,24 @@ Autonomously process all raw captures in `01_inbox/` into enriched `02_backlog/`
 
 Read `~/Vaults/AGENTS.md` for current vault conventions before starting.
 
+## Tool Access
+
+The Knowledge vault is at `~/Vaults/Knowledge/`.
+
+- **Primary:** use `obsidian` CLI (`obsidian vault=Knowledge files`, `read`, `create`, `delete`, `search`).
+- **Fallback:** if `obsidian` CLI is unavailable or a command fails, use the filesystem directly:
+  - List: `Read` tool on `~/Vaults/Knowledge/01_inbox/`
+  - Read: `Read` tool on `~/Vaults/Knowledge/{path}`
+  - Create: `Write` tool to `~/Vaults/Knowledge/{path}`
+  - Delete: `bash trash ~/Vaults/Knowledge/{path}`
+  - Search: `Grep` tool on `~/Vaults/Knowledge/`
+- Never silently skip the inbox. If listing fails, retry with the fallback method.
+
 ## Steps
 
 1. **List inbox:** `obsidian vault=Knowledge files folder=01_inbox`
    - If empty, say "Inbox empty — nothing to triage." and stop.
+   - If the command fails, fall back to reading the directory directly.
 
 2. **Process each file autonomously.** For each:
 
