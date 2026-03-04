@@ -17,6 +17,7 @@ The Knowledge vault is at `~/Vaults/Knowledge/`.
   - Create: `Write` tool to `~/Vaults/Knowledge/{path}`
   - Delete: `bash trash ~/Vaults/Knowledge/{path}`
   - Search: `Grep` tool on `~/Vaults/Knowledge/`
+- **Tweet extraction:** use `bird read <url>` (or `bird thread <url>` for threads) for `x.com`/`twitter.com` URLs. Auth via env vars (`AUTH_TOKEN`, `CT0`). If bird fails (expired cookies, rate limit), fall back to Tavily search with the tweet ID.
 - Never silently skip the inbox. If listing fails, retry with the fallback method.
 
 ## Steps
@@ -35,8 +36,15 @@ The Knowledge vault is at `~/Vaults/Knowledge/`.
       - Examples: a note with 3 pasted URLs → 3 backlog notes. A note mixing a tool link, a personal reminder, and a project idea → 3 backlog notes.
 
    c. **If it contains a URL:**
-      - Fetch the URL (WebFetch or Tavily).
-      - Extract: title, author if available, key content.
+      - **Tweet URLs** (`x.com/*`, `twitter.com/*`):
+        1. Run `bird read <url>` to extract full tweet text, author, engagement, and any quoted tweets.
+        2. If it's a thread (multiple replies from the same author), use `bird thread <url>` instead.
+        3. If bird fails, fall back to Tavily search with the numeric tweet ID for partial recovery.
+        4. Include the extracted tweet content in a `## Tweet Context` section in the backlog note.
+        5. Proceed to research (step e) on the topic/product/person identified in the tweet.
+      - **All other URLs:**
+        - Fetch the URL (WebFetch or Tavily).
+        - Extract: title, author if available, key content.
       - Write a 2-4 sentence summary capturing the core insight.
       - **Check for duplicates:** `obsidian vault=Knowledge search query="{url}"` — scan results for any `02_backlog/` note that already contains this URL.
         - **If a match exists:** read the existing note, merge any new information (better summary, additional context), append if useful. Do NOT create a new note. Skip to step k.
@@ -88,7 +96,7 @@ The Knowledge vault is at `~/Vaults/Knowledge/`.
 
    j. **Create enriched note in backlog** (non-project items only):
       ```
-       obsidian vault=Knowledge create path="02_backlog/{kebab-name}.md" content="# {Title}\n\n{summary or cleaned content}\n\n{original URL if present}\n\n## Research\n\n{briefing — what it is, benefits, alternatives, fit for this system, caveats}\n\n## References\n\n- {source URLs from research}\n\n## Tasks\n\n- [ ] {action item} #{tag}"
+       obsidian vault=Knowledge create path="02_backlog/{kebab-name}.md" content="# {Title}\n\n{summary or cleaned content}\n\n{original URL if present}\n\n## Tweet Context\n\n{only if source is a tweet — author, full text, engagement, quoted tweets}\n\n## Research\n\n{briefing — what it is, benefits, alternatives, fit for this system, caveats}\n\n## References\n\n- {source URLs from research}\n\n## Tasks\n\n- [ ] {action item} #{tag}"
       ```
 
    k. **Delete the original:** `obsidian vault=Knowledge delete path="01_inbox/{file}"`
