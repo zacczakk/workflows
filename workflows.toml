@@ -1,5 +1,5 @@
 [meta]
-version = "0.4.0"
+version = "0.5.0"
 label_prefix = "com.zacczakk"
 log_dir = "logs"
 plist_dir = "plists"
