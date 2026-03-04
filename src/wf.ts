@@ -42,6 +42,16 @@ const UID =
   process.env.UID ??
   Bun.spawnSync(["id", "-u"], { stdout: "pipe" }).stdout.toString().trim();
 
+// ── Environment ────────────────────────────────────────────────────
+
+// Capture full login-shell PATH so all child processes (including
+// subagent shells that don't source .zprofile) inherit it.
+const loginPath = Bun.spawnSync(["/bin/zsh", "-lc", "echo $PATH"], {
+  stdout: "pipe", stderr: "ignore",
+}).stdout.toString().trim();
+
+if (loginPath) process.env.PATH = loginPath;
+
 // ── launchd helpers ────────────────────────────────────────────────
 
 function loadedLabels(): Set<string> {
