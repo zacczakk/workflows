@@ -33,7 +33,7 @@ type = "agent"
 prompt = "prompts/vault-inbox-processing.md"
 model = "github-copilot/claude-opus-4.6"
 description = "Process Knowledge vault inbox into enriched backlog notes"
-timeout = 1800
+timeout = 3600
 
 [workflows.vault-session-processing]
 type = "agent"
