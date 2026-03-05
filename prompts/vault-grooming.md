@@ -1,6 +1,6 @@
 # Vault Grooming
 
-Sweep both vaults for structural issues. Fix what's safe, enrich the link graph, report the rest.
+Sweep both vaults for structural issues. Fix what's safe, build a tree-shaped link graph, report the rest.
 
 ## Context
 
@@ -8,10 +8,10 @@ Read `~/Vaults/AGENTS.md` for current vault conventions before starting.
 
 ## Scope
 
-| Vault | Fix in-place | Can delete | Report only |
-|-------|-------------|------------|-------------|
-| Knowledge | Broken wikilinks, add missing links, promote backlog to projects | Promoted backlog notes only | Stubs, structural issues |
-| Memory | Broken wikilinks, add missing links, fix frontmatter | Empty/artifact files only | Stubs, structural issues |
+| Vault | Fix in-place | Can create | Can delete | Report only |
+|-------|-------------|------------|------------|-------------|
+| Knowledge | Broken wikilinks, tree-structured links, promote backlog | Index notes in `06_docs/`, `07_knowledge/` | Promoted backlog notes only | Stubs, structural issues |
+| Memory | Broken wikilinks, tree-structured links, fix frontmatter | `collection` notes when 3+ leaves cluster | Empty/artifact files only | Stubs, structural issues |
 
 ## Steps
 
@@ -25,22 +25,24 @@ Read `~/Vaults/AGENTS.md` for current vault conventions before starting.
 - Fix where the target is obvious (typo, moved file) — find the closest filename match.
 - If ambiguous, report instead of guessing.
 
-**Missing links:**
+**Missing links (tree-structured):**
 - Scan content for mentions of concepts, tools, projects, or topics that exist as notes in either vault but aren't linked.
-- Add `[[wikilinks]]` to ALL relevant targets. Don't stop at one — link every meaningful connection.
-- Cross-vault links are valid and encouraged.
+- Add links following the tree-graph linking policy (see Rules section). Every note links **upward** to its logical parent and to **direct dependencies** only.
+- Do NOT link siblings (notes at the same level under the same parent) — they're reachable by traversing up then down.
+- Cross-vault links only through hub notes (`MEMORY.md`, `03_active/` project notes).
 
 **Orphaned files** (no incoming links from any other note, excluding `Home.md` and `00_system/`):
 - Do NOT delete orphans.
-- Read the orphan's content and find related notes using `obsidian vault=Knowledge search query="..."` and `obsidian vault=Memory search query="..."`.
+- Read the orphan's content and find its logical parent using `obsidian vault=Knowledge search query="..."` and `obsidian vault=Memory search query="..."`.
 - If `qmd` is available on PATH, prefer `qmd search "{note title or key concepts}" --json` for better semantic matching.
-- Add `[[wikilinks]]` in both directions — link the orphan to related notes, and link related notes back to the orphan.
+- Link the orphan **upward only** — add a `[[wikilink]]` or `See also:` pointing to its logical parent (a `03_active/` project note, a `06_docs/` or `07_knowledge/` index note, or the most relevant hub note).
+- Do NOT add backlinks from other notes to the orphan. Let it earn inbound links organically.
 - Report what was linked in the grooming report.
 
 **Multi-topic notes:**
 - If a note covers two or more distinct, separable topics in a single file, split it into individual notes — one per topic.
 - Each new note gets the original's folder location and inherits relevant links/tags.
-- Add `[[wikilinks]]` between all split notes so the relationship is preserved.
+- Link each split note upward to their shared parent note. Do NOT link split notes to each other — they share a parent, which is sufficient for traversal.
 - Update any incoming links from other notes to point to the correct split note.
 - Report every split in the grooming report (original → new notes).
 
@@ -67,8 +69,8 @@ Read `~/Vaults/AGENTS.md` for current vault conventions before starting.
 **Broken wikilinks:**
 - Same as Knowledge vault — fix obvious, report ambiguous.
 
-**Missing links:**
-- Same as Knowledge vault — scan content, add `[[wikilinks]]` to ALL relevant targets in both vaults.
+**Missing links (tree-structured):**
+- Same as Knowledge vault — scan content, add links following the tree-graph linking policy. Link upward to parent + direct dependencies only.
 
 **Invalid or missing frontmatter:**
 - Must have `type`, `tags`, `created` at minimum (see AGENTS.md schema).
@@ -76,7 +78,7 @@ Read `~/Vaults/AGENTS.md` for current vault conventions before starting.
   - `type`: infer from folder (`tools/` → `tool`, `patterns/` → `pattern`, `projects/` → `project`, `sessions/` → `session`, root → `reference`).
   - `tags`: infer from content. Use `[]` if nothing obvious.
   - `created`: try to get the file's birth time via `stat -f %SB ~/Vaults/Memory/{path}`. Parse the date from the output. Fall back to `created: unknown` and flag in the report.
-  - `related`: add `[[wikilinks]]` to any notes that are meaningfully connected.
+  - `related`: add the note's logical parent and up to 2 direct dependencies. Max 3 entries. Don't pad with tangential connections.
 - Write frontmatter fixes via filesystem (`~/Vaults/Memory/{path}`) — backtick safety.
 
 **Multi-topic notes:**
@@ -85,7 +87,7 @@ Read `~/Vaults/AGENTS.md` for current vault conventions before starting.
 - Write new notes via filesystem (`~/Vaults/Memory/{path}`) — backtick safety.
 
 **Orphaned files:**
-- Same approach as Knowledge vault — find related notes, add links in both directions. Do NOT delete.
+- Same approach as Knowledge vault — find the orphan's logical parent, link upward only. Do NOT add backlinks. Do NOT delete.
 - Use `qmd search` if available for better semantic matching.
 
 **Empty/artifact files:**
@@ -93,7 +95,63 @@ Read `~/Vaults/AGENTS.md` for current vault conventions before starting.
 - If a file has even one line of real content, report it as a stub instead of deleting.
 - Record every deletion in the grooming report.
 
-### 3. Write grooming reports
+### 3. Create collection and index notes
+
+After scanning both vaults, identify clusters of leaf notes that lack a shared parent. Create parent notes to give the tree structure.
+
+**Memory vault — `collection` notes:**
+- Group leaf notes by shared theme within each folder (`patterns/`, `tools/`, `projects/`, `system/`).
+- If 3+ leaf notes share a common topic and no existing note serves as their parent → create a `collection` note.
+- Place the collection in the same folder as its children.
+- Format:
+  ```markdown
+  ---
+  type: collection
+  tags: [{inferred from children}]
+  created: {YYYY-MM-DD}
+  related: []
+  ---
+
+  # {Topic Name}
+
+  {2-3 sentence summary of what this collection covers.}
+
+  ## Notes
+
+  - [[child-note-1]] — one-line summary
+  - [[child-note-2]] — one-line summary
+  - [[child-note-3]] — one-line summary
+  ```
+- Write via filesystem — backtick safety.
+- Update each child's `related:` frontmatter to include the new collection as its parent (first entry).
+
+**Knowledge vault — index notes:**
+- `06_docs/`: if no index note exists and there are 5+ notes, create `06_docs/docs-index.md` grouping docs by domain.
+- `07_knowledge/`: if no index note exists and there are 5+ notes, create `07_knowledge/knowledge-index.md` grouping notes by theme.
+- `05_notes/`: create an index only when 5+ notes exist. Skip if fewer.
+- `02_backlog/`: no index notes. Stays flat.
+- `03_active/` and `04_archive/`: project notes already serve as parents. No new index notes needed.
+- Format (Knowledge vault — no frontmatter):
+  ```markdown
+  # {Folder} Index
+
+  {Brief framing paragraph.}
+
+  ## {Theme 1}
+  - [[note-a]] — one-line summary
+  - [[note-b]] — one-line summary
+
+  ## {Theme 2}
+  - [[note-c]] — one-line summary
+  ```
+- Update each child note's `See also:` to reference the new index as its first entry.
+
+**Rules for parent creation:**
+- Merge-first: check if a natural parent already exists (project note, existing doc, existing collection) before creating a new one.
+- One level deep: don't create grandparent notes. If collections themselves cluster, a future run can address that.
+- Report every new collection/index note in the grooming report.
+
+### 4. Write grooming reports
 
 Write a separate report to each vault.
 
@@ -101,7 +159,7 @@ Write a separate report to each vault.
 
 **Knowledge vault report:**
 ```
-obsidian vault=Knowledge create path="00_system/grooming-reports/{YYYY-MM-DD}.md" content="# Grooming Report — {YYYY-MM-DD}\n\n## Summary\n\n- {N} issues found, {M} fixed, {P} backlog notes promoted\n\n## Fixed\n\n- ...\n\n## Promoted to Projects\n\n- 02_backlog/{file} → 03_active/{project}.md\n- ...\n\n## Needs Review\n\n- ..."
+obsidian vault=Knowledge create path="00_system/grooming-reports/{YYYY-MM-DD}.md" content="# Grooming Report — {YYYY-MM-DD}\n\n## Summary\n\n- {N} issues found, {M} fixed, {P} backlog notes promoted, {C} collections created\n\n## Fixed\n\n- ...\n\n## Promoted to Projects\n\n- 02_backlog/{file} → 03_active/{project}.md\n- ...\n\n## Collections Created\n\n- 07_knowledge/knowledge-index.md (aggregates: note-a, note-b, note-c)\n- ...\n\n## Needs Review\n\n- ..."
 ```
 
 **Memory vault report** (write via filesystem for backtick safety):
@@ -111,7 +169,7 @@ Write to `~/Vaults/Memory/system/grooming-reports/{YYYY-MM-DD}.md`:
 
 ## Summary
 
-- {N} issues found, {M} fixed, {K} files deleted
+- {N} issues found, {M} fixed, {K} files deleted, {C} collections created
 
 ## Fixed
 
@@ -121,12 +179,17 @@ Write to `~/Vaults/Memory/system/grooming-reports/{YYYY-MM-DD}.md`:
 
 - ...
 
+## Collections Created
+
+- tools/shell-environment.md (aggregates: node-nvm-bun-zshrc-setup, shell-optimization, terminal-setup)
+- ...
+
 ## Needs Review
 
 - ...
 ```
 
-### 4. Print technical log
+### 5. Print technical log
 
 Print all actions taken to stdout (captured by launchd to `logs/vault-grooming.out.log`).
 
@@ -136,7 +199,14 @@ Print all actions taken to stdout (captured by launchd to `logs/vault-grooming.o
 - Knowledge vault: ONLY delete `02_backlog/` notes that were successfully promoted into a `03_active/` project note. Never delete anything else.
 - Memory vault: ONLY delete truly empty/artifact files (zero content below frontmatter). Everything else is reported.
 - When fixing broken wikilinks, log the before and after in the grooming report so changes can be reviewed.
-- When adding new links, add to ALL relevant targets — prefer over-linking to under-linking.
+- **Tree-graph linking policy:** Links must build a traversable tree, not a dense mesh.
+  - Every note gets exactly **1 parent link** — the broader topic or collection it belongs under.
+  - Plus **0-3 dependency links** — notes required to understand this one.
+  - No sibling links. Notes at the same level share a parent; that's enough for traversal.
+  - No bidirectional links unless there's a true mutual dependency (A requires B AND B requires A).
+  - Cross-vault links only through hub notes (`MEMORY.md`, project notes in `03_active/`).
+  - Max outgoing links per leaf note: 4 (1 parent + 3 deps). Collection/index notes have no cap (they link down to all children).
+  - When in doubt, link less. A sparse tree is navigable; a dense mesh is noise.
 - Frontmatter fixes in Memory vault: use the schema from `~/Vaults/AGENTS.md`. Use `stat` for `created` date, fall back to `unknown`.
 - Memory vault file writes go through the filesystem (`~/Vaults/Memory/...`), not the obsidian CLI — backtick safety.
 - Grooming reports go in each vault's own grooming-reports folder.
