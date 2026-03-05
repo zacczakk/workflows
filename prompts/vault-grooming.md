@@ -105,23 +105,25 @@ After scanning both vaults, identify clusters of leaf notes that lack a shared p
 - Place the collection in the same folder as its children.
 - Format:
   ```markdown
-  ---
-  type: collection
-  tags: [{inferred from children}]
-  created: {YYYY-MM-DD}
-  related: []
-  ---
+   ---
+   type: collection
+   tags: [{inferred from children}]
+   created: {YYYY-MM-DD}
+   related: ["[[{folder-parent}]]"]
+   ---
 
-  # {Topic Name}
+   # {Topic Name}
 
-  {2-3 sentence summary of what this collection covers.}
+   {2-3 sentence summary of what this collection covers.}
 
-  ## Notes
+   ## Notes
 
-  - [[child-note-1]] — one-line summary
-  - [[child-note-2]] — one-line summary
-  - [[child-note-3]] — one-line summary
-  ```
+   - [[child-note-1]] — one-line summary
+   - [[child-note-2]] — one-line summary
+   - [[child-note-3]] — one-line summary
+   ```
+- The `related:` field MUST reference the folder parent: `[[tools]]` for `tools/`, `[[patterns]]` for `patterns/`, etc. Exception: `system/` collections use `[[MEMORY]]` as parent (no folder parent exists for system/).
+- Only list children that live in the same folder as the collection. Do NOT list cross-folder notes.
 - Write via filesystem — backtick safety.
 - Update each child's `related:` frontmatter to include the new collection as its parent (first entry).
 
@@ -228,6 +230,28 @@ Print all actions taken to stdout (captured by launchd to `logs/vault-grooming.o
   - Cross-vault links only through hub notes (`MEMORY.md`, project notes in `03_active/`).
   - Max outgoing links per leaf note: 4 (1 parent + 3 deps). Collection/index notes have no cap (they link down to all children).
   - When in doubt, link less. A sparse tree is navigable; a dense mesh is noise.
+- **Body `[[wikilinks]]` in Memory vault.** Leaf notes must NOT contain `[[wikilinks]]` to other leaf notes anywhere in body text. Use plain text for references to other notes. Only allowed body wikilinks: parent notes linking down to children (e.g., folder parents listing their leaves, collections listing their children). If a leaf has body wikilinks to other leaves, convert them to plain text during grooming.
+- **Memory vault parent validation.** Every leaf note's `related:` first entry MUST be its folder parent (`[[tools]]`, `[[patterns]]`, `[[projects]]`, `[[sessions]]`) or a collection note in the same folder. If first entry is another leaf note or a cross-folder reference, fix it — set the folder parent as first entry, keep the rest as deps (max 3 total).
+- **Collection threshold enforcement.** After any grooming pass that removes links or reparents notes:
+  - Count each collection's **same-folder children** (notes in the same folder whose `related:` first entry is the collection).
+  - If a collection has **fewer than 3 same-folder children**, dissolve it:
+    1. Reparent each child's `related:` first entry to the folder parent (e.g., `[[tools]]`).
+    2. Remove the collection from any other notes' `related:` dep lists.
+    3. Remove the collection's listing from the folder parent.
+    4. Delete the collection file.
+    5. Add the former children to the folder parent's uncollected list.
+    6. Log the dissolution in the grooming report.
+  - Collections only list notes that live in their same folder. Cross-folder notes can reference a collection as a dependency in `related:` but are NOT listed as collection children.
+- **Grooming report frontmatter.** Every Memory vault grooming report must have frontmatter with `related: ["[[reports]]"]`. Template:
+  ```markdown
+  ---
+  type: reference
+  tags: [grooming, report]
+  created: YYYY-MM-DD
+  related: ["[[reports]]"]
+  ---
+  ```
+- **Dangling wikilinks.** Every `[[wikilink]]` in every file must resolve to an existing note. If a wikilink points to a non-existent note, either create the target note or convert the wikilink to plain text. Log each fix in the grooming report.
 - Frontmatter fixes in Memory vault: use the schema from `~/Vaults/AGENTS.md`. Use `stat` for `created` date, fall back to `unknown`.
 - Memory vault file writes go through the filesystem (`~/Vaults/Memory/...`), not the obsidian CLI — backtick safety.
 - Grooming reports go in each vault's own grooming-reports folder.

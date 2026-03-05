@@ -77,23 +77,22 @@ Organize by what an agent needs to know, not by folder structure.
 ```markdown
 # MEMORY
 
-## System
-- Two vaults: Knowledge (personal notes, projects, backlog) + Memory (agent operational memory).
-- Knowledge: folder = type, no frontmatter. Memory: frontmatter required, folder-scoped.
-- {other system/architecture notes, one line each with [[wikilink]]}
+## System — [[obsidian-vault-system]]
+- {system/architecture notes, one line each with [[wikilink]] to existing note}
 
-## Active Projects
+## Active Projects — [[projects]]
 - [[project-name]] — what it is, current state, key learnings
 
-## Tools & Setup
-- [[tool-name]] — operational gotcha or setup note
-
-## Patterns
+## Patterns — [[patterns]]
 - [[pattern-name]] — reusable approach, when to use it
 
-## Sessions
-- [[session-name]] — key takeaway (only if it adds insight not captured elsewhere)
+## Tools & Setup — [[tools]]
+- [[tool-name]] — operational gotcha or setup note
 ```
+
+**Section headers MUST include a `[[wikilink]]` to the folder parent note** (e.g., `## Active Projects — [[projects]]`). This makes the tree navigable downward from MEMORY.md.
+
+Entries that have a corresponding note file in the vault use `[[wikilinks]]`. Entries that are inline summaries WITHOUT a note file use **plain text** — never create a dangling `[[wikilink]]` to a non-existent note.
 
 ### Section assignment logic
 
@@ -133,7 +132,7 @@ This file is primarily user-curated. The distillation workflow only:
 ## Rules
 
 - Telegraph style. Super condensed. Each entry is 1-2 lines max.
-- Every entry MUST have a `[[wikilink]]` to the source note.
+- Every entry with a corresponding note file MUST have a `[[wikilink]]` to the source note. Inline-only entries (no note file) use plain text — never create dangling wikilinks.
 - Each entry should convey **why it matters** — not just what the note is about, but what an agent should know or do differently because of it.
 - This file is **regenerated on every run** — it overwrites the previous version. Not hand-curated.
 - `USER.md` is the opposite: primarily hand-curated. Only append, never rewrite.
@@ -142,3 +141,6 @@ This file is primarily user-curated. The distillation workflow only:
 - If a note is too vague to summarize in 1-2 lines, still include it with a generic summary. Don't skip notes.
 - Preserve the `[[wikilink]]` format exactly — Obsidian resolves these by filename.
 - Omit empty sections. If there are no sessions worth listing, don't include the Sessions header.
+- **No body leaf-to-leaf wikilinks.** Within entry descriptions (the text after the `—`), do NOT use `[[wikilinks]]` to other leaf notes. Use plain text. Only the entry's own note name gets a wikilink.
+- **Section headers link to folder parents.** Every `##` section header must include the folder parent wikilink (e.g., `## Active Projects — [[projects]]`).
+- **Validate before writing.** Before writing MEMORY.md, verify every `[[wikilink]]` resolves to an existing note in the vault. If a note doesn't exist, convert to plain text.

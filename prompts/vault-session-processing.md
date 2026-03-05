@@ -74,8 +74,8 @@ Processed {N} session notes:
 - Merge over create. Always check for existing notes first — extend them rather than creating near-duplicates.
 - Skip noise. Routine back-and-forth, dead ends, and obvious things are not worth extracting.
 - Every extracted note MUST have valid frontmatter (`type`, `tags`, `created`, `related`).
-- **Tree-graph linking.** Populate `related:` with the note's nearest parent (first entry) and up to 2 direct dependencies. Max 3 entries. Parent = the matching `collection` note if one exists for this topic cluster, otherwise the most relevant hub in MEMORY.md. Don't pad with tangential connections. If only a parent exists, `["[[parent]]"]` is fine.
-- Include `[[wikilinks]]` only for direct dependencies — notes the reader needs to understand this one. Don't link siblings or tangentially related topics. Cross-vault links only through hub notes (`MEMORY.md`, project notes).
+- **Tree-graph linking.** Populate `related:` with the note's **folder parent first** and up to 2 direct dependencies. Max 3 entries. Folder parents by folder: `tools/` → `[[tools]]`, `patterns/` → `[[patterns]]`, `projects/` → `[[projects]]`, `sessions/` → `[[sessions]]`. If a collection exists in the same folder for this topic, use the collection instead. Don't pad with tangential connections. If only a parent exists, `["[[parent]]"]` is fine.
+- **No body `[[wikilinks]]` to other leaf notes.** Use plain text for references to other Memory vault notes within body content. The only allowed body wikilinks are from parent/collection notes listing their children.
 - Always include `vault=Memory` in every `obsidian` command.
 - Write notes via filesystem (`~/Vaults/Memory/...`), not `obsidian create` — backtick safety.
 - If a session note has zero extractable knowledge (purely routine, everything already captured elsewhere), delete it and note "no extractable knowledge" in the summary.
