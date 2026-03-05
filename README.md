@@ -28,7 +28,7 @@ Sleep is disabled for the duration of the batch and re-enabled afterward (via `f
 | Workflow | Type | Timeout | What it does |
 |----------|------|---------|-------------|
 | `vault-embeddings` | script | 30m | Re-index vault in QMD for hybrid search |
-| `vault-inbox-processing` | agent | 30m | Triage raw inbox captures into enriched backlog notes |
+| `vault-inbox-processing` | agent | 1h | Triage raw inbox captures into enriched backlog notes |
 | `vault-session-processing` | agent | 30m | Distill session notes into patterns and project knowledge |
 | `vault-grooming` | agent | 1h | Fix broken links, connect orphans, clean frontmatter |
 | `vault-knowledge-distillation` | agent | 1h | Condense vault into a single context file for agents |

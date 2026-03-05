@@ -210,7 +210,7 @@ Sources nvm, runs `qmd update && qmd embed`. No agent involved. Runs first to en
 |-------|-------|
 | Type | `agent` |
 | Prompt | `prompts/vault-inbox-processing.md` |
-| Timeout | 30min |
+| Timeout | 1h |
 | Scope | Create + edit in Knowledge vault. Deletes processed inbox originals. |
 | Vaults | Knowledge |
 
