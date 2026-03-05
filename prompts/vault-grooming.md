@@ -27,7 +27,7 @@ Read `~/Vaults/AGENTS.md` for current vault conventions before starting.
 
 **Missing links (tree-structured):**
 - Scan content for mentions of concepts, tools, projects, or topics that exist as notes in either vault but aren't linked.
-- Add links following the tree-graph linking policy (see Rules section). Every note links **upward** to its logical parent and to **direct dependencies** only.
+- Add links following the tree-graph linking policy (see Rules section). Every note links **upward** to its nearest parent (sub-index if one exists, otherwise folder index) and to **direct dependencies** only.
 - Do NOT link siblings (notes at the same level under the same parent) — they're reachable by traversing up then down.
 - Cross-vault links only through hub notes (`MEMORY.md`, `03_active/` project notes).
 
@@ -35,7 +35,7 @@ Read `~/Vaults/AGENTS.md` for current vault conventions before starting.
 - Do NOT delete orphans.
 - Read the orphan's content and find its logical parent using `obsidian vault=Knowledge search query="..."` and `obsidian vault=Memory search query="..."`.
 - If `qmd` is available on PATH, prefer `qmd search "{note title or key concepts}" --json` for better semantic matching.
-- Link the orphan **upward only** — add a `[[wikilink]]` or `See also:` pointing to its logical parent (a `03_active/` project note, a `06_docs/` or `07_knowledge/` index note, or the most relevant hub note).
+- Link the orphan **upward only** — add a `[[wikilink]]` or `See also:` pointing to its nearest parent. Check sub-indexes first (e.g., `agent-memory.md`, `terminal-shell.md`), then folder indexes (`docs.md`, `knowledge.md`), then project notes in `03_active/`.
 - Do NOT add backlinks from other notes to the orphan. Let it earn inbound links organically.
 - Report what was linked in the grooming report.
 
@@ -125,26 +125,47 @@ After scanning both vaults, identify clusters of leaf notes that lack a shared p
 - Write via filesystem — backtick safety.
 - Update each child's `related:` frontmatter to include the new collection as its parent (first entry).
 
-**Knowledge vault — index notes:**
-- `06_docs/`: if no index note exists and there are 5+ notes, create `06_docs/docs-index.md` grouping docs by domain.
-- `07_knowledge/`: if no index note exists and there are 5+ notes, create `07_knowledge/knowledge-index.md` grouping notes by theme.
-- `05_notes/`: create an index only when 5+ notes exist. Skip if fewer.
-- `02_backlog/`: no index notes. Stays flat.
-- `03_active/` and `04_archive/`: project notes already serve as parents. No new index notes needed.
-- Format (Knowledge vault — no frontmatter):
+**Knowledge vault — index and sub-index notes:**
+
+Two levels of hierarchy exist:
+1. **Folder indexes** — `docs.md`, `knowledge.md`, `projects.md`, `backlog.md`. Link up to `Home.md`. List sub-indexes under a `## Topics` section and unclustered leaves under thematic `##` sections.
+2. **Sub-indexes** — topic clusters within `06_docs/` and `07_knowledge/` (e.g., `agent-memory.md`, `terminal-shell.md`). Link up to their folder index. List their children with one-line summaries.
+
+Maintenance rules:
+- If a folder index or sub-index already exists, update it (add/remove children) — don't recreate.
+- Create a **new sub-index** when 3+ unparented leaves in `06_docs/` or `07_knowledge/` cluster around a theme. Name it after the theme. Add `See also: [[folder-index]]`. List children. Update each child's `See also:` to point to the new sub-index (not the folder index).
+- `05_notes/`: create a folder index only when 5+ notes exist. Skip if fewer.
+- `02_backlog/`: `backlog.md` is the index. No sub-indexes.
+- `03_active/`: `projects.md` is the index. No sub-indexes.
+- Leaves with <3 siblings in a theme: link directly to the folder index (no sub-index needed).
+
+Format for sub-indexes (Knowledge vault — no frontmatter):
+  ```markdown
+  # {Topic Name}
+
+  {Brief framing paragraph.}
+
+  See also: [[folder-index]]
+
+  - [[note-a]] — one-line summary
+  - [[note-b]] — one-line summary
+  ```
+
+Format for folder indexes:
   ```markdown
   # {Folder} Index
 
   {Brief framing paragraph.}
 
-  ## {Theme 1}
-  - [[note-a]] — one-line summary
-  - [[note-b]] — one-line summary
+  See also: [[Home]]
 
-  ## {Theme 2}
+  ## Topics
+  - [[sub-index-a]] — description (N leaves)
+  - [[sub-index-b]] — description (N leaves)
+
+  ## {Unclustered Theme}
   - [[note-c]] — one-line summary
   ```
-- Update each child note's `See also:` to reference the new index as its first entry.
 
 **Rules for parent creation:**
 - Merge-first: check if a natural parent already exists (project note, existing doc, existing collection) before creating a new one.

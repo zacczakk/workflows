@@ -122,6 +122,6 @@ The Knowledge vault is at `~/Vaults/Knowledge/`.
 - Use Tavily search for deep topic research on every non-personal item. Skip research only for personal/trivial items (or if Phil's inline instructions say otherwise).
 - Kebab-case filenames derived from content, not original filename.
 - No duplicates. If a URL already exists in `02_backlog/`, enhance the existing note.
-- Include `[[wikilinks]]` only to the note's logical parent and direct dependencies (max 3 total). Don't link tangentially related notes. Cross-vault links only through hub notes.
+- **Tree-graph linking.** Include `[[wikilinks]]` only to the note's nearest parent and direct dependencies (max 3 total). For `02_backlog/` notes, parent is `[[backlog]]`. For notes merged into `03_active/`, no extra links needed. Don't link siblings or tangentially related notes. Cross-vault links only through hub notes.
 - Do NOT delete any files in `02_backlog/`, `03_active/`, or `07_knowledge/`. Only delete processed `01_inbox/` originals.
 - Project-specific items go directly into `03_active/` project notes — not `02_backlog/`. Only create backlog notes for items with no matching active project.

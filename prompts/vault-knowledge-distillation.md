@@ -37,7 +37,7 @@ Read `~/Vaults/AGENTS.md` for current vault conventions before starting.
 
 ### 3. Scan Knowledge vault docs
 
-Read all files in `~/Vaults/Knowledge/06_docs/`. This folder contains personal runbooks, cheat sheets, tool configs, and setup guides — operational knowledge that agents benefit from.
+Read all leaf files in `~/Vaults/Knowledge/06_docs/`. Skip index and sub-index notes (`docs.md`, `terminal-shell.md`, `python.md`, `agent-obsidian.md`) — they're structural, not content. This folder contains personal runbooks, cheat sheets, tool configs, and setup guides — operational knowledge that agents benefit from.
 
 For each doc, extract:
 - Tool names, CLI patterns, setup gotchas, or environment-specific knowledge an agent would need.

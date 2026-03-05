@@ -74,7 +74,7 @@ Processed {N} session notes:
 - Merge over create. Always check for existing notes first — extend them rather than creating near-duplicates.
 - Skip noise. Routine back-and-forth, dead ends, and obvious things are not worth extracting.
 - Every extracted note MUST have valid frontmatter (`type`, `tags`, `created`, `related`).
-- Populate `related:` with the note's logical parent (first entry) and up to 2 direct dependencies. Max 3 entries. Don't pad with tangential connections. If only a parent exists, `["[[parent]]"]` is fine.
+- **Tree-graph linking.** Populate `related:` with the note's nearest parent (first entry) and up to 2 direct dependencies. Max 3 entries. Parent = the matching `collection` note if one exists for this topic cluster, otherwise the most relevant hub in MEMORY.md. Don't pad with tangential connections. If only a parent exists, `["[[parent]]"]` is fine.
 - Include `[[wikilinks]]` only for direct dependencies — notes the reader needs to understand this one. Don't link siblings or tangentially related topics. Cross-vault links only through hub notes (`MEMORY.md`, project notes).
 - Always include `vault=Memory` in every `obsidian` command.
 - Write notes via filesystem (`~/Vaults/Memory/...`), not `obsidian create` — backtick safety.
