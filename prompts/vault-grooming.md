@@ -58,6 +58,19 @@ Read `~/Vaults/AGENTS.md` for current vault conventions before starting.
   6. Log the promotion in the grooming report (backlog note → project note).
 - If no matching `03_active/` project note exists, leave the backlog note in place and report it.
 
+**Stale parent links** (notes whose parent link doesn't match their current folder):
+- Notes move between folders manually (backlog → knowledge when done, backlog → active when promoted by the user, etc.). When a note moves, its parent link (`See also:`) often stays pointed at the old folder's index.
+- For each note in `02_backlog/`, `03_active/`, `06_docs/`, `07_knowledge/`:
+  1. Read the note's `See also:` line (if present).
+  2. Determine the correct parent for the note's **current folder**: `02_backlog/` → `[[backlog]]`, `03_active/` → `[[projects]]`, `06_docs/` → the matching sub-index or `[[docs]]`, `07_knowledge/` → the matching sub-index or `[[knowledge]]`.
+  3. If the note's `See also:` points to the wrong parent (e.g., still says `[[backlog]]` but the note now lives in `07_knowledge/`), fix it.
+  4. If the note has no `See also:` line, add one pointing to the correct parent.
+- **Also validate index/parent note listings.** For each folder index and sub-index:
+  1. Check that every `[[wikilink]]` in the index still resolves to a note in the expected folder.
+  2. Remove listings for notes that no longer exist or have moved to a different folder.
+  3. Add listings for notes that exist in the folder but are missing from the index.
+- Log all parent link fixes and index updates in the grooming report.
+
 **Stub notes** (fewer than 3 lines of actual content):
 - Report only. Do NOT delete.
 
@@ -94,6 +107,17 @@ Read `~/Vaults/AGENTS.md` for current vault conventions before starting.
 - If a file has zero meaningful lines of content (blank, or just frontmatter with no body text at all), delete it: `obsidian vault=Memory delete path="..."`.
 - If a file has even one line of real content, report it as a stub instead of deleting.
 - Record every deletion in the grooming report.
+
+**Stale parent links** (notes whose `related:` first entry doesn't match their current folder):
+- For each leaf note in `tools/`, `patterns/`, `projects/`, `sessions/`, `system/`:
+  1. Read the note's `related:` frontmatter.
+  2. Determine the correct parent for the note's **current folder**: `tools/` → `[[tools]]` or a same-folder collection, `patterns/` → `[[patterns]]`, `projects/` → `[[projects]]`, `sessions/` → `[[sessions]]`, `system/` → `[[obsidian-vault-system]]`.
+  3. If the first entry in `related:` doesn't match the correct parent, fix it. Keep existing deps (entries 2-3) if still valid.
+- **Also validate folder parent and collection listings:**
+  1. For each folder parent (`tools.md`, `patterns.md`, `projects.md`, `sessions.md`) and collection, check that every `[[wikilink]]` in their notes listing resolves to a note in the expected folder.
+  2. Remove listings for notes that no longer exist or moved to a different folder.
+  3. Add listings for notes that exist in the folder but are missing from the listing.
+- Log all fixes in the grooming report.
 
 ### 3. Create collection and index notes
 
