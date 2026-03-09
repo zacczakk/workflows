@@ -56,6 +56,7 @@ Previous approach (`caffeinate -s`) only prevented idle sleep, not clamshell sle
     vault-session-processing.md
     vault-grooming.md
     vault-knowledge-distillation.md
+    vault-consolidation.md
   scripts/
     vault-embeddings.ts               # qmd update + embed (script-type)
   src/
@@ -104,8 +105,8 @@ Meta-schedules group workflows into ordered sequential batches:
 
 ```toml
 [schedules.nightly]
-time = { hour = 2, minute = 0 }
-watchdog = { hour = 6, minute = 0 }
+time = { hour = 1, minute = 0 }
+watchdog = { hour = 7, minute = 0 }
 enabled = true
 workflows = [
   "vault-embeddings",
@@ -113,6 +114,7 @@ workflows = [
   "vault-session-processing",
   "vault-grooming",
   "vault-knowledge-distillation",
+  "vault-consolidation",
 ]
 ```
 
@@ -153,7 +155,7 @@ QMD uses `better-sqlite3` with native addons. Must run under Node >= 22 (MODULE_
 ## Execution flow
 
 ```
-launchd fires at 02:00 → /bin/zsh -lc "wf run nightly"
+launchd fires at 01:00 → /bin/zsh -lc "wf run nightly"
   → reads + validates workflows.toml
   → resolves schedule → ordered workflow list
   → disablesleep 1 (passwordless sudo)
@@ -190,7 +192,7 @@ Each `wf run` writes run state to `state/<name>.json`:
 
 ## Workflows
 
-All workflows run in the `nightly` schedule at 02:00, sequentially in this order:
+All workflows run in the `nightly` schedule at 01:00, sequentially in this order:
 
 ### 1. vault-embeddings
 
@@ -234,7 +236,7 @@ Distills session notes into patterns, tools, and project knowledge.
 |-------|-------|
 | Type | `agent` |
 | Prompt | `prompts/vault-grooming.md` |
-| Timeout | 1h |
+| Timeout | 90min |
 | Scope | Knowledge: edit + report (no delete). Memory: edit + delete. |
 | Vaults | Knowledge + Memory |
 
@@ -246,11 +248,23 @@ Scans both vaults for broken wikilinks, invalid frontmatter, orphans, stubs. Wri
 |-------|-------|
 | Type | `agent` |
 | Prompt | `prompts/vault-knowledge-distillation.md` |
-| Timeout | 1h |
+| Timeout | 90min |
 | Scope | Create + edit in Memory vault |
 | Vaults | Memory |
 
 Reads all Memory vault notes, distills into `MEMORY.md` at vault root. Runs after grooming so it summarizes clean state.
+
+### 6. vault-consolidation
+
+| Field | Value |
+|-------|-------|
+| Type | `agent` |
+| Prompt | `prompts/vault-consolidation.md` |
+| Timeout | 1h |
+| Scope | Create + edit in Memory vault |
+| Vaults | Memory |
+
+Synthesizes cross-cutting insights from recent unconsolidated session notes. Marks processed notes as `consolidated: true`.
 
 ## wf CLI
 

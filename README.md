@@ -7,7 +7,7 @@ Scheduled AI agent workflows for Obsidian vault maintenance. macOS-native, launc
 ## How it works
 
 ```
-pmset wakeorpoweron  →  launchd fires at 02:00
+pmset wakeorpoweron  →  launchd fires at 01:00
                          └── wf run nightly
                               ├── disablesleep 1
                               ├── vault-embeddings     (script)
@@ -15,13 +15,14 @@ pmset wakeorpoweron  →  launchd fires at 02:00
                               ├── vault-session-processing (agent)
                               ├── vault-grooming         (agent)
                               ├── vault-knowledge-distillation (agent)
+                              ├── vault-consolidation    (agent)
                               └── disablesleep 0
-watchdog at 06:00    →  disablesleep 0 (safety net)
+watchdog at 07:00    →  disablesleep 0 (safety net)
 ```
 
 Workflows run **sequentially** in schedule order — the next starts immediately after the previous finishes. A single launchd plist triggers `wf run <schedule>` at the earliest schedule time. Per-workflow timeouts still apply.
 
-Sleep is disabled for the duration of the batch and re-enabled afterward (via `finally` block + signal traps). A watchdog plist at 06:00 guarantees sleep re-enables even if `wf` crashes.
+Sleep is disabled for the duration of the batch and re-enabled afterward (via `finally` block + signal traps). A watchdog plist at 07:00 guarantees sleep re-enables even if `wf` crashes.
 
 ## Included workflows
 
@@ -30,8 +31,9 @@ Sleep is disabled for the duration of the batch and re-enabled afterward (via `f
 | `vault-embeddings` | script | 30m | Re-index vault in QMD for hybrid search |
 | `vault-inbox-processing` | agent | 1h | Triage raw inbox captures into enriched backlog notes |
 | `vault-session-processing` | agent | 30m | Distill session notes into patterns and project knowledge |
-| `vault-grooming` | agent | 1h | Fix broken links, connect orphans, clean frontmatter |
-| `vault-knowledge-distillation` | agent | 1h | Condense vault into a single context file for agents |
+| `vault-grooming` | agent | 90m | Fix broken links, connect orphans, clean frontmatter |
+| `vault-knowledge-distillation` | agent | 90m | Condense vault into a single context file for agents |
+| `vault-consolidation` | agent | 1h | Synthesize cross-cutting insights from recent session notes |
 
 ## CLI
 
@@ -103,7 +105,7 @@ wf install
 
 This registers two launchd agents per enabled schedule:
 
-- **`wf-<schedule>`** — triggers `wf run <schedule>` at the scheduled time (e.g., 02:00 for `nightly`)
+- **`wf-<schedule>`** — triggers `wf run <schedule>` at the scheduled time (e.g., 01:00 for `nightly`)
 - **`wf-<schedule>-watchdog`** — runs `pmset disablesleep 0` at the watchdog time as a safety net
 
 It also sets a `pmset repeat wakeorpoweron` so the Mac wakes from sleep to run workflows. This step prompts for sudo (one time).
@@ -165,7 +167,7 @@ Workflows run overnight with the Mac lid closed. Three layers ensure reliability
 
 1. **`pmset repeat wakeorpoweron`** — wakes the Mac at the scheduled time (set during `wf install`)
 2. **`pmset disablesleep`** — prevents clamshell sleep while workflows execute (`wf run` toggles this automatically via passwordless sudo)
-3. **Sleep watchdog** — a launchd job at 06:00 that runs `pmset disablesleep 0` as a safety net in case `wf` crashes without re-enabling sleep
+3. **Sleep watchdog** — a launchd job at 07:00 that runs `pmset disablesleep 0` as a safety net in case `wf` crashes without re-enabling sleep
 
 The `disablesleep` flag is runtime-only (not persisted) — a reboot always clears it.
 
