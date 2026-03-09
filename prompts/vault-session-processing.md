@@ -1,6 +1,6 @@
 # Session Processing
 
-Process raw session notes in `sessions/` — extract durable knowledge into the right Memory folders, then archive or delete the session note.
+Process raw session notes in `sessions/` — extract durable knowledge into the right Memory folders. Leave session notes in place for the consolidation workflow to cross-reference later.
 
 ## Context
 
@@ -54,8 +54,9 @@ d. **Create or update target notes.** For each extractable item:
      ```
    - For merged notes: preserve existing frontmatter, append or update content sections.
 
-e. **Delete the session note:** `obsidian vault=Memory delete path="sessions/{file}"`
-   - Only delete after all extracted knowledge has been written successfully.
+e. **Leave the session note in place.** Do NOT delete it. The consolidation workflow will read unconsolidated session notes for cross-cutting pattern synthesis, then handle cleanup.
+   - If the session note has `consolidated: false` in frontmatter (or no `consolidated` field), leave it as-is.
+   - If the session note lacks a `consolidated` field entirely, add `consolidated: false` to its frontmatter.
 
 ### 3. Print summary
 
@@ -64,7 +65,7 @@ Processed {N} session notes:
 - sessions/{file} → {M} items extracted
   → new: patterns/{a}.md, tools/{b}.md
   → updated: projects/{c}.md
-- sessions/{file} → no extractable knowledge (deleted)
+- sessions/{file} → no extractable knowledge (kept for consolidation)
 ```
 
 ## Rules
@@ -78,5 +79,5 @@ Processed {N} session notes:
 - **No body `[[wikilinks]]` to other leaf notes.** Use plain text for references to other Memory vault notes within body content. The only allowed body wikilinks are from parent/collection notes listing their children.
 - Always include `vault=Memory` in every `obsidian` command.
 - Write notes via filesystem (`~/Vaults/Memory/...`), not `obsidian create` — backtick safety.
-- If a session note has zero extractable knowledge (purely routine, everything already captured elsewhere), delete it and note "no extractable knowledge" in the summary.
+- If a session note has zero extractable knowledge (purely routine, everything already captured elsewhere), leave it in place for consolidation and note "no extractable knowledge" in the summary.
 - Do NOT modify notes outside the Memory vault. This workflow is write-only to Memory.
