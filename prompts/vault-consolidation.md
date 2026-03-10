@@ -14,14 +14,6 @@ This runs every 3 days after the nightly pipeline. Input = unconsolidated sessio
 
 ## Steps
 
-### 0. Check if consolidation is due
-
-List files in `~/Vaults/Memory/system/consolidation-reports/` (via filesystem or `obsidian vault=Memory files folder=system/consolidation-reports`).
-
-- Find the most recent report by filename date (`YYYY-MM-DD.md`).
-- If the most recent report is **less than 3 days old**, say "Consolidation not due — last run {date}." and stop.
-- If no reports exist, proceed (first run).
-
 ### 1. Gather unconsolidated session notes
 
 `obsidian vault=Memory files folder=sessions`

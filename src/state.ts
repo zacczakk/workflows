@@ -40,6 +40,15 @@ export function writeState(
   writeFileSync(resolve(stateDir, `${name}.json`), JSON.stringify(state, null, 2) + "\n");
 }
 
+export function lastSuccessDate(stateDir: string, name: string): Date | null {
+  const state = readState(stateDir, name);
+  if (!state) return null;
+  for (const entry of state.history) {
+    if (entry.exitCode === 0) return new Date(entry.startedAt);
+  }
+  return null;
+}
+
 export function relativeTime(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
   if (diff < 0) return "just now";

@@ -11,7 +11,7 @@ import {
 import { homedir } from "os";
 import type { Config, RunEntry, Workflow } from "./types";
 import { validateConfig } from "./validate";
-import { readState, writeState, relativeTime, formatDuration } from "./state";
+import { readState, writeState, relativeTime, formatDuration, lastSuccessDate } from "./state";
 import {
   generateRunnerPlist,
   generateWatchdogPlist,
@@ -282,6 +282,19 @@ async function cmdRun(name: string) {
     try {
       for (const wfName of sched.workflows) {
         const wf = cfg.workflows[wfName];
+        if (wf.cadence_days) {
+          const last = lastSuccessDate(stateDir(cfg), wfName);
+          if (last) {
+            const daysSince = (Date.now() - last.getTime()) / 86_400_000;
+            if (daysSince < wf.cadence_days) {
+              console.log(
+                `\n${c.dim}skip${R} ${c.bold}${wfName}${R} ${c.dim}cadence ${wf.cadence_days}d, last success ${relativeTime(last.toISOString())}${R}`,
+              );
+              passed++;
+              continue;
+            }
+          }
+        }
         const code = await runWorkflow(cfg, wfName, wf);
         if (code === 0) passed++;
         else failed++;

@@ -14,6 +14,7 @@ export interface Workflow {
   model?: string;
   description: string;
   timeout?: number;
+  cadence_days?: number;
 }
 
 // ── Schedule ────────────────────────────────────────────────────────

@@ -119,6 +119,14 @@ export function validateConfig(parsed: unknown): Config {
       timeout = w.timeout;
     }
 
+    let cadence_days: number | undefined;
+    if (w.cadence_days !== undefined) {
+      if (typeof w.cadence_days !== "number" || !Number.isInteger(w.cadence_days) || w.cadence_days < 1) {
+        throw new ConfigError(path, "'cadence_days' must be a positive integer");
+      }
+      cadence_days = w.cadence_days;
+    }
+
     workflows[name] = {
       type: type as "agent" | "script",
       prompt: type === "agent" ? (w.prompt as string) : undefined,
@@ -126,6 +134,7 @@ export function validateConfig(parsed: unknown): Config {
       model,
       description,
       timeout,
+      cadence_days,
     };
   }
 
