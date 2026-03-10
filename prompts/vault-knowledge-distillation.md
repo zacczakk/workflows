@@ -57,12 +57,14 @@ These entries go into MEMORY.md alongside Memory vault entries. Use `[[filename]
 
 ### 4. Build MEMORY.md
 
-For each note, extract:
-- The core insight or operational knowledge (1-2 lines max).
-- Which section it belongs to (reason about content, don't blindly map from folder).
-- Its filename for the `[[wikilink]]`.
+MEMORY.md is a **slim hub** that links to folder parents — NOT to individual leaf notes. The folder parents (`system.md`, `projects.md`, `patterns.md`, `tools.md`, `sessions.md`) already index their leaves. MEMORY.md's job is: help an agent decide WHICH folder parent to drill into, in minimal tokens.
 
-Use the `type` frontmatter field as a hint, but override based on actual content when it makes more sense.
+For each folder parent, write:
+- A 1-2 line prose summary of what that section contains (counts, themes, key highlights).
+- Use the leaf summaries you collected to write accurate, current descriptions.
+- Do NOT list individual leaf notes in MEMORY.md — that's the folder parent's job.
+
+Use the `type` frontmatter field and folder location as hints for categorization.
 
 ### 5. Build USER.md
 
@@ -80,42 +82,64 @@ Do NOT use the obsidian CLI for these writes (backtick safety).
 
 ## MEMORY.md Format
 
-Organize by what an agent needs to know, not by folder structure.
+MEMORY.md is a slim hub. It links to folder parents only — never to individual leaf notes. Each section is a prose summary helping agents decide which folder parent to drill into.
 
 ```markdown
+---
+type: agent-memory
+mutable: true
+tags: [agent, memory]
+created: YYYY-MM-DD
+updated: YYYY-MM-DD
+related: ["[[IDENTITY]]", "[[SOUL]]", "[[USER]]"]
+---
+
 # MEMORY
 
-## System — [[obsidian-vault-system]]
-- {system/architecture notes, one line each with [[wikilink]] to existing note}
+Agent-facing persistent memory. Each section links to a folder parent that indexes its leaves. Read folder parents for detail.
 
-## Active Projects — [[projects]]
-- [[project-name]] — what it is, current state, key learnings
+## [[system]]
 
-## Patterns — [[patterns]]
-- [[pattern-name]] — reusable approach, when to use it
+{1-2 line prose summary of system notes — architecture, conventions, tooling, report collections}
 
-## Tools & Setup — [[tools]]
-- [[tool-name]] — operational gotcha or setup note
+## [[projects]]
+
+{1-2 line prose summary — count of tracked projects, themes}
+
+## [[patterns]]
+
+{1-2 line prose summary — what patterns cover, count}
+
+## [[tools]]
+
+{1-2 line prose summary — tool categories, count}
+
+## [[sessions]]
+
+{1-2 line prose summary — session lifecycle description}
 ```
 
-**Section headers MUST include a `[[wikilink]]` to the folder parent note** (e.g., `## Active Projects — [[projects]]`). This makes the tree navigable downward from MEMORY.md.
-
-Entries that have a corresponding note file in the vault use `[[wikilinks]]`. Entries that are inline summaries WITHOUT a note file use **plain text** — never create a dangling `[[wikilink]]` to a non-existent note.
+**Key rules:**
+- Section headers use `## [[folder-parent]]` format — a wikilink to the folder parent note.
+- Body text is prose, not bullet lists. No `[[wikilinks]]` in body text.
+- No leaf note listings. The folder parents already have those.
+- Omit empty sections (e.g., if no sessions exist, skip that header).
+- Preserve the frontmatter exactly. Update `updated:` to today's date.
 
 ### Section assignment logic
 
-Use the note's content and frontmatter `type` to decide placement:
+Use the note's content and frontmatter `type` to decide which folder parent it summarizes under:
 
 | Content is about... | Section | Typical source |
 |---------------------|---------|----------------|
-| Vault structure, agent config, system architecture | System | Memory |
-| A specific repo, feature, or project | Active Projects | Memory |
-| CLI tools, setup gotchas, operational knowledge | Tools & Setup | Memory + Knowledge/06_docs |
-| Environment setup, shell config, dev tooling | Tools & Setup | Knowledge/06_docs |
-| Reusable implementation approaches | Patterns | Memory |
-| Session recaps with unique insights | Sessions | Memory |
+| Vault structure, agent config, system architecture | `[[system]]` | Memory |
+| A specific repo, feature, or project | `[[projects]]` | Memory |
+| CLI tools, setup gotchas, operational knowledge | `[[tools]]` | Memory + Knowledge/06_docs |
+| Environment setup, shell config, dev tooling | `[[tools]]` | Knowledge/06_docs |
+| Reusable implementation approaches | `[[patterns]]` | Memory |
+| Session recaps with unique insights | `[[sessions]]` | Memory |
 
-If a session recap's insights are already captured in another note, skip it or add a brief reference. Avoid duplicating information across sections.
+Knowledge vault docs from `06_docs/` contribute to the prose summaries (especially tools/system) but are NOT listed as individual entries.
 
 ## USER.md Format
 
@@ -139,16 +163,14 @@ This file is primarily user-curated. The distillation workflow only:
 
 ## Rules
 
-- Telegraph style. Super condensed. Each entry is 1-2 lines max.
-- Every entry with a corresponding note file MUST have a `[[wikilink]]` to the source note. Inline-only entries (no note file) use plain text — never create dangling wikilinks.
-- Each entry should convey **why it matters** — not just what the note is about, but what an agent should know or do differently because of it.
+- Telegraph style. Super condensed. Each section body is 1-2 lines of prose max.
+- **No leaf listings in MEMORY.md.** Folder parents handle that. MEMORY.md links to folder parents only.
+- Section headers use `## [[folder-parent]]` — a wikilink to the folder parent note. No other wikilinks anywhere in the file body.
+- Body text is prose, not bullet lists. Describe what the section contains and why it matters.
 - This file is **regenerated on every run** — it overwrites the previous version. Not hand-curated.
 - `USER.md` is the opposite: primarily hand-curated. Only append, never rewrite.
 - Write via filesystem (`~/Vaults/Memory/...`), not obsidian CLI. The CLI eats backticks in content.
 - Do NOT modify any source notes. This workflow is read-only except for writing MEMORY.md and USER.md.
-- If a note is too vague to summarize in 1-2 lines, still include it with a generic summary. Don't skip notes.
 - Preserve the `[[wikilink]]` format exactly — Obsidian resolves these by filename.
 - Omit empty sections. If there are no sessions worth listing, don't include the Sessions header.
-- **No body leaf-to-leaf wikilinks.** Within entry descriptions (the text after the `—`), do NOT use `[[wikilinks]]` to other leaf notes. Use plain text. Only the entry's own note name gets a wikilink.
-- **Section headers link to folder parents.** Every `##` section header must include the folder parent wikilink (e.g., `## Active Projects — [[projects]]`).
 - **Validate before writing.** Before writing MEMORY.md, verify every `[[wikilink]]` resolves to an existing note in the vault. If a note doesn't exist, convert to plain text.
