@@ -71,23 +71,29 @@ Only read files identified in Phase 1 as orphans or missing parent links.
 
 ### Phase 4: Memory vault frontmatter validation
 
-Use `rg` to extract frontmatter blocks efficiently:
+Use `rg` to check frontmatter fields directly (avoids filesystem permission issues):
 
 ```bash
-# Extract first 15 lines of every Memory vault .md file
-for f in ~/Vaults/Memory/**/*.md; do
-  echo "=== $f ==="
-  head -15 "$f"
-done > /tmp/memory_frontmatter.txt
+# Check for missing required fields across all Memory vault notes
+rg -l --files-without-match '^type:' ~/Vaults/Memory/ --glob '*.md' 2>/dev/null
+rg -l --files-without-match '^tags:' ~/Vaults/Memory/ --glob '*.md' 2>/dev/null
+rg -l --files-without-match '^created:' ~/Vaults/Memory/ --glob '*.md' 2>/dev/null
+rg -l --files-without-match '^related:' ~/Vaults/Memory/ --glob '*.md' 2>/dev/null
+
+# Check session notes for missing consolidated field
+rg -l --files-without-match '^consolidated:' ~/Vaults/Memory/sessions/ --glob '*.md' 2>/dev/null
+
+# Count notes missing summary field
+rg -l --files-without-match '^summary:' ~/Vaults/Memory/ --glob '*.md' 2>/dev/null
 ```
+
+For files with missing required fields, read them via `obsidian vault=Memory read path="..."` to understand content and fix frontmatter. Write fixes via filesystem.
 
 Scan for:
 - Missing `type`, `tags`, or `created` fields.
-- `related:` first entry not matching folder parent.
+- `related:` first entry not matching folder parent (use the link graph from Phase 1 for this).
 - Missing `summary` field (report count, don't fix — other workflows populate summaries).
 - Missing `consolidated` field on session notes.
-
-Only read full files that need frontmatter fixes. Fix via filesystem writes.
 
 ### Phase 5: Backlog promotion (Knowledge vault)
 

@@ -94,11 +94,10 @@ d. If merging into an existing note: preserve existing frontmatter, append or up
 
 Read frontmatter (especially `summary` and `updated` fields) for notes in `projects/`, `patterns/`, and `tools/`. Only full-read notes where drift is suspected. Use a summary-first scan:
 
+For each note, read frontmatter via `obsidian vault=Memory read path="..."` (first 10-15 lines are sufficient). Or use `rg` to check specific fields:
+
 ```bash
-for f in ~/Vaults/Memory/{projects,patterns,tools}/*.md; do
-  echo "=== $(basename "$f" .md) ==="
-  head -15 "$f"
-done > /tmp/vault_frontmatter.txt
+rg '^(type|summary|updated|status):' ~/Vaults/Memory/projects/ ~/Vaults/Memory/patterns/ ~/Vaults/Memory/tools/ --glob '*.md' --no-heading 2>/dev/null
 ```
 
 For each:

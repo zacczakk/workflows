@@ -29,13 +29,11 @@ Read `~/Vaults/AGENTS.md` for current vault conventions before starting.
 
 **Use a summary-first approach** to avoid reading every file in full:
 
-1. Extract all frontmatter blocks in one pass:
+1. Extract summaries in one pass using `rg`:
    ```bash
-   for f in ~/Vaults/Memory/{patterns,projects,tools,system}/**/*.md ~/Vaults/Memory/{patterns,projects,tools}/*.md; do
-     echo "=== $(basename "$f" .md) ==="
-     head -20 "$f"
-   done > /tmp/memory_summaries.txt
+   rg '^summary:' ~/Vaults/Memory/ --glob '*.md' --no-heading 2>/dev/null
    ```
+   Then read frontmatter of each note via `obsidian vault=Memory read path="..."` (first 10-15 lines suffice for categorization).
 
 2. For notes with a `summary:` field in frontmatter — use it directly. No full read needed unless the summary is unclear or you need to update the MEMORY.md entry significantly.
 
