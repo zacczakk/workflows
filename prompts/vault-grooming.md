@@ -213,4 +213,4 @@ Print all actions taken to stdout (captured by launchd).
 - Frontmatter fixes in Memory vault: use the schema from `~/Vaults/AGENTS.md`. Use `stat` for `created` date, fall back to `unknown`.
 - Memory vault file writes go through the filesystem (`~/Vaults/Memory/...`), not the obsidian CLI — backtick safety.
 - If `qmd` is on PATH, use `qmd search` for finding related notes to link orphans.
-- No subagent delegation for vault scans. The `rg`-based approach is faster and more predictable than spawning subagents that read every file.
+- Prefer `rg`-based structural analysis over spawning subagents to read every file — faster and more predictable for bulk scans. Delegate targeted fixes to subagents when useful.
