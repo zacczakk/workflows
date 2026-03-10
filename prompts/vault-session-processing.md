@@ -8,15 +8,26 @@ Read `~/Vaults/AGENTS.md` for current vault conventions before starting.
 
 ## Steps
 
-### 1. List session notes
+### 1. List unconsolidated session notes
 
-`obsidian vault=Memory files folder=sessions`
+Find session notes that haven't been processed yet:
 
-- If empty, say "No session notes to process." and stop.
+```bash
+# Files with consolidated: false
+rg -l '^consolidated: false' ~/Vaults/Memory/sessions/ --glob '*.md' 2>/dev/null > /tmp/sessions_false.txt
 
-### 2. Process each session note
+# Files missing consolidated field entirely (new notes)
+rg -L '^consolidated:' ~/Vaults/Memory/sessions/ --glob '*.md' 2>/dev/null >> /tmp/sessions_false.txt
 
-For each file in `sessions/`:
+# Exclude the index file
+grep -v 'sessions\.md$' /tmp/sessions_false.txt | sort -u > /tmp/sessions_to_process.txt
+```
+
+- If empty, say "No unconsolidated session notes to process." and stop.
+
+### 2. Process each unconsolidated session note
+
+For each file in `/tmp/sessions_to_process.txt`:
 
 a. Read the full note: `obsidian vault=Memory read path="sessions/{file}"`
 
