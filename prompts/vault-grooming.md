@@ -89,10 +89,10 @@ rg -l --files-without-match '^summary:' ~/Vaults/Memory/ --glob '*.md' 2>/dev/nu
 
 For files with missing required fields, read them via `obsidian vault=Memory read path="..."` to understand content and fix frontmatter. Write fixes via filesystem.
 
-Scan for:
+Scan for and fix:
 - Missing `type`, `tags`, or `created` fields.
 - `related:` first entry not matching folder parent (use the link graph from Phase 1 for this).
-- Missing `summary` field (report count, don't fix — other workflows populate summaries).
+- Missing `summary` field — read the note body via `obsidian vault=Memory read path="..."` and write a 15-25 word plain-text summary into frontmatter. No wikilinks, no markdown in the summary. Skip `MEMORY.md`, `IDENTITY.md`, `SOUL.md`, `USER.md`, and `system/grooming-reports/` (these don't need summaries).
 - Missing `consolidated` field on session notes.
 
 ### Phase 5: Backlog promotion (Knowledge vault)
