@@ -68,6 +68,7 @@ c. Write the new pattern note via filesystem (`~/Vaults/Memory/patterns/{kebab-n
    ```markdown
    ---
    type: pattern
+   summary: "{one-line plain-text summary, 15-25 words, no wikilinks}"
    tags: [{inferred from content}]
    created: YYYY-MM-DD
    related: ["[[patterns]]"]
@@ -91,7 +92,16 @@ d. If merging into an existing note: preserve existing frontmatter, append or up
 
 ### 4. Detect staleness and drift
 
-Read all notes in `projects/`, `patterns/`, and `tools/` folders. For each:
+Read frontmatter (especially `summary` and `updated` fields) for notes in `projects/`, `patterns/`, and `tools/`. Only full-read notes where drift is suspected. Use a summary-first scan:
+
+```bash
+for f in ~/Vaults/Memory/{projects,patterns,tools}/*.md; do
+  echo "=== $(basename "$f" .md) ==="
+  head -15 "$f"
+done > /tmp/vault_frontmatter.txt
+```
+
+For each:
 
 **Project notes (`status: active`):**
 - Check if any unconsolidated session note references this project.

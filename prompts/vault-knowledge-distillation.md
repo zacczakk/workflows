@@ -27,13 +27,23 @@ Read `~/Vaults/AGENTS.md` for current vault conventions before starting.
 
 ### 2. Read Memory vault notes
 
-**At current vault size (< 50 notes):** read every note in full.
+**Use a summary-first approach** to avoid reading every file in full:
 
-**At larger vault sizes (50+ notes):**
-- Read frontmatter + first 20 lines of each note first. This is enough to categorize and summarize most notes.
-- Only deep-read notes that are unclear from the first pass.
-- If `qmd` is on PATH, use `qmd search` to cluster notes by topic instead of reading all sequentially.
-- Prioritize recently updated notes (`updated` or `created` frontmatter fields). Older, unchanged notes can keep their existing MEMORY.md entry if one exists.
+1. Extract all frontmatter blocks in one pass:
+   ```bash
+   for f in ~/Vaults/Memory/{patterns,projects,tools,system}/**/*.md ~/Vaults/Memory/{patterns,projects,tools}/*.md; do
+     echo "=== $(basename "$f" .md) ==="
+     head -20 "$f"
+   done > /tmp/memory_summaries.txt
+   ```
+
+2. For notes with a `summary:` field in frontmatter — use it directly. No full read needed unless the summary is unclear or you need to update the MEMORY.md entry significantly.
+
+3. For notes WITHOUT a `summary:` field — read the full note to categorize and summarize. Add a `summary:` field to the frontmatter while you're there (backfill).
+
+4. If `qmd` is on PATH, use `qmd search` to cluster notes by topic instead of reading all sequentially.
+
+5. Prioritize recently updated notes (`updated` or `created` frontmatter fields). Older, unchanged notes can keep their existing MEMORY.md entry if one exists.
 
 ### 3. Scan Knowledge vault docs
 

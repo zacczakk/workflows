@@ -6,6 +6,10 @@ Sweep both vaults for structural issues. Fix what's safe, build a tree-shaped li
 
 Read `~/Vaults/AGENTS.md` for current vault conventions before starting.
 
+## Performance Budget
+
+This workflow has a 90-minute timeout. Do NOT read every file in either vault. Use the phased approach below — structural analysis first via `rg`, then targeted reads only for files that need fixes.
+
 ## Scope
 
 | Vault | Fix in-place | Can create | Can delete | Report only |
@@ -15,203 +19,151 @@ Read `~/Vaults/AGENTS.md` for current vault conventions before starting.
 
 ## Steps
 
-### 1. Scan Knowledge vault
+### Phase 1: Build the link graph (no file reads)
 
-- `obsidian vault=Knowledge files` — get full file list.
-- For each file, read and check for:
+Build a complete wikilink adjacency map for both vaults using `rg`. This replaces reading every file.
 
-**Broken wikilinks:**
-- Links to notes that don't exist in either vault.
-- Fix where the target is obvious (typo, moved file) — find the closest filename match.
+```bash
+# 1a. Get all files in both vaults
+obsidian vault=Knowledge files 2>/dev/null > /tmp/knowledge_files.txt
+obsidian vault=Memory files 2>/dev/null > /tmp/memory_files.txt
+
+# 1b. Extract all wikilinks from every file (filename:line:match)
+rg -o '\[\[([^\]|#]+)[^\]]*\]\]' --no-heading -r '$1' ~/Vaults/Knowledge/ > /tmp/knowledge_links.txt
+rg -o '\[\[([^\]|#]+)[^\]]*\]\]' --no-heading -r '$1' ~/Vaults/Memory/ > /tmp/memory_links.txt
+
+# 1c. Extract all project tags from backlog (for promotion check)
+rg -l '#(try|personal)' ~/Vaults/Knowledge/02_backlog/ > /tmp/backlog_tagged.txt 2>/dev/null || true
+```
+
+From these outputs, compute:
+- **Broken wikilinks**: links whose target doesn't match any filename (minus extension) in either vault.
+- **Orphaned files**: files with zero incoming links from any other file (excluding `Home.md`, `00_system/`, `MEMORY.md`, `IDENTITY.md`, `SOUL.md`, `USER.md`).
+- **Missing parent links**: files not linking up to their folder index/parent.
+
+### Phase 2: Fix broken wikilinks (targeted reads)
+
+Only read files identified in Phase 1 as having broken links.
+
+For each broken wikilink:
+- Find the closest filename match (typo, moved file) across both vaults.
+- If the match is obvious (edit distance ≤ 2, or a moved file with the same name), fix it.
 - If ambiguous, report instead of guessing.
+- Log every fix: before → after.
 
-**Missing links (tree-structured):**
-- Scan content for mentions of concepts, tools, projects, or topics that exist as notes in either vault but aren't linked.
-- Add links following the tree-graph linking policy (see Rules section). Every note links **upward** to its nearest parent (sub-index if one exists, otherwise folder index) and to **direct dependencies** only.
-- Do NOT link siblings (notes at the same level under the same parent) — they're reachable by traversing up then down.
-- Cross-vault links only through hub notes (`MEMORY.md`, `03_active/` project notes).
+### Phase 3: Fix tree structure (targeted reads)
 
-**Orphaned files** (no incoming links from any other note, excluding `Home.md` and `00_system/`):
-- Do NOT delete orphans.
-- Read the orphan's content and find its logical parent using `obsidian vault=Knowledge search query="..."` and `obsidian vault=Memory search query="..."`.
-- If `qmd` is available on PATH, prefer `qmd search "{note title or key concepts}" --json` for better semantic matching.
-- Link the orphan **upward only** — add a `[[wikilink]]` or `See also:` pointing to its nearest parent. Check sub-indexes first (e.g., `agent-memory.md`, `terminal-shell.md`), then folder indexes (`docs.md`, `knowledge.md`), then project notes in `03_active/`.
-- Do NOT add backlinks from other notes to the orphan. Let it earn inbound links organically.
-- Report what was linked in the grooming report.
+Only read files identified in Phase 1 as orphans or missing parent links.
 
-**Multi-topic notes:**
-- If a note covers two or more distinct, separable topics in a single file, split it into individual notes — one per topic.
-- Each new note gets the original's folder location and inherits relevant links/tags.
-- Link each split note upward to their shared parent note. Do NOT link split notes to each other — they share a parent, which is sufficient for traversal.
-- Update any incoming links from other notes to point to the correct split note.
-- Report every split in the grooming report (original → new notes).
+**Knowledge vault — orphan resolution:**
+- Read the orphan's `# Title` and first paragraph (not full body).
+- Use `obsidian vault=Knowledge search query="..."` or `qmd search` to find its logical parent.
+- Link upward only — add `See also: [[parent]]`. Check sub-indexes first, then folder indexes, then project notes.
+- Do NOT add backlinks from other notes to the orphan.
 
-**Backlog promotion** (project-specific notes stuck in `02_backlog/`):
-- First, discover active project tags: `obsidian vault=Knowledge files folder=03_active` — derive a tag for each project from its filename (e.g. `my-project.md` → `#my-project`). Use these as the set of known project tags.
-- Scan all `02_backlog/` notes for any of those project tags, explicit `[[wikilinks]]`, or mentions of an active project.
-- For each match:
-  1. Find the matching project note in `03_active/`.
-  2. Read both the backlog note and the project note.
-  3. Append the backlog note's task line(s) to the project's `## Tasks` section.
-  4. If the backlog note has a URL, summary, or context worth preserving, add it as a `See also:` line or brief entry in the project note.
-  5. Delete the backlog note: `obsidian vault=Knowledge delete path="02_backlog/{file}"`.
-  6. Log the promotion in the grooming report (backlog note → project note).
-- If no matching `03_active/` project note exists, leave the backlog note in place and report it.
+**Memory vault — orphan resolution:**
+- Read frontmatter only (first 10-15 lines). Use the `summary` field if present.
+- Same approach: find logical parent via search, link upward via `related:` frontmatter.
 
-**Stale parent links** (notes whose parent link doesn't match their current folder):
-- Notes move between folders manually (backlog → knowledge when done, backlog → active when promoted by the user, etc.). When a note moves, its parent link (`See also:`) often stays pointed at the old folder's index.
-- For each note in `02_backlog/`, `03_active/`, `06_docs/`, `07_knowledge/`:
-  1. Read the note's `See also:` line (if present).
-  2. Determine the correct parent for the note's **current folder**: `02_backlog/` → `[[backlog]]`, `03_active/` → `[[projects]]`, `06_docs/` → the matching sub-index or `[[docs]]`, `07_knowledge/` → the matching sub-index or `[[knowledge]]`.
-  3. If the note's `See also:` points to the wrong parent (e.g., still says `[[backlog]]` but the note now lives in `07_knowledge/`), fix it.
-  4. If the note has no `See also:` line, add one pointing to the correct parent.
-- **Also validate index/parent note listings.** For each folder index and sub-index:
-  1. Check that every `[[wikilink]]` in the index still resolves to a note in the expected folder.
-  2. Remove listings for notes that no longer exist or have moved to a different folder.
-  3. Add listings for notes that exist in the folder but are missing from the index.
-- Log all parent link fixes and index updates in the grooming report.
+**Missing parent links:**
+- Knowledge vault: add `See also: [[folder-index]]` or `See also: [[sub-index]]`.
+- Memory vault: fix `related:` first entry to be the folder parent.
 
-**Stub notes** (fewer than 3 lines of actual content):
-- Report only. Do NOT delete.
+### Phase 4: Memory vault frontmatter validation
 
-### 2. Scan Memory vault
+Use `rg` to extract frontmatter blocks efficiently:
 
-- `obsidian vault=Memory files` — get full file list.
-- For each file, read and check for:
+```bash
+# Extract first 15 lines of every Memory vault .md file
+for f in ~/Vaults/Memory/**/*.md; do
+  echo "=== $f ==="
+  head -15 "$f"
+done > /tmp/memory_frontmatter.txt
+```
 
-**Broken wikilinks:**
-- Same as Knowledge vault — fix obvious, report ambiguous.
+Scan for:
+- Missing `type`, `tags`, or `created` fields.
+- `related:` first entry not matching folder parent.
+- Missing `summary` field (report count, don't fix — other workflows populate summaries).
+- Missing `consolidated` field on session notes.
 
-**Missing links (tree-structured):**
-- Same as Knowledge vault — scan content, add links following the tree-graph linking policy. Link upward to parent + direct dependencies only.
+Only read full files that need frontmatter fixes. Fix via filesystem writes.
 
-**Invalid or missing frontmatter:**
-- Must have `type`, `tags`, `created` at minimum (see AGENTS.md schema).
-- Fix missing fields:
-  - `type`: infer from folder (`tools/` → `tool`, `patterns/` → `pattern`, `projects/` → `project`, `sessions/` → `session`, root → `reference`).
-  - `tags`: infer from content. Use `[]` if nothing obvious.
-  - `created`: try to get the file's birth time via `stat -f %SB ~/Vaults/Memory/{path}`. Parse the date from the output. Fall back to `created: unknown` and flag in the report.
-  - `related`: add the note's logical parent and up to 2 direct dependencies. Max 3 entries. Don't pad with tangential connections.
-- Write frontmatter fixes via filesystem (`~/Vaults/Memory/{path}`) — backtick safety.
+### Phase 5: Backlog promotion (Knowledge vault)
 
-**Multi-topic notes:**
-- Same as Knowledge vault — split notes covering multiple distinct topics into individual notes.
-- Each new note must have valid frontmatter (infer `type`, `tags`, `created` from the original).
-- Write new notes via filesystem (`~/Vaults/Memory/{path}`) — backtick safety.
+```bash
+# Get active project names as tags
+obsidian vault=Knowledge files folder=03_active 2>/dev/null
+```
 
-**Orphaned files:**
-- Same approach as Knowledge vault — find the orphan's logical parent, link upward only. Do NOT add backlinks. Do NOT delete.
-- Use `qmd search` if available for better semantic matching.
+Derive project tags from filenames. Then:
 
-**Empty/artifact files:**
-- If a file has zero meaningful lines of content (blank, or just frontmatter with no body text at all), delete it: `obsidian vault=Memory delete path="..."`.
-- If a file has even one line of real content, report it as a stub instead of deleting.
-- Record every deletion in the grooming report.
+```bash
+# Search backlog for project tags/mentions
+rg -l '(#project-tag|project-name)' ~/Vaults/Knowledge/02_backlog/ 2>/dev/null
+```
 
-**Stale parent links** (notes whose `related:` first entry doesn't match their current folder):
-- For each leaf note in `tools/`, `patterns/`, `projects/`, `sessions/`, `system/`:
-  1. Read the note's `related:` frontmatter.
-  2. Determine the correct parent for the note's **current folder**: `tools/` → `[[tools]]` or a same-folder collection, `patterns/` → `[[patterns]]`, `projects/` → `[[projects]]`, `sessions/` → `[[sessions]]`, `system/` → `[[obsidian-vault-system]]`.
-  3. If the first entry in `related:` doesn't match the correct parent, fix it. Keep existing deps (entries 2-3) if still valid.
-- **Also validate folder parent and collection listings:**
-  1. For each folder parent (`tools.md`, `patterns.md`, `projects.md`, `sessions.md`) and collection, check that every `[[wikilink]]` in their notes listing resolves to a note in the expected folder.
-  2. Remove listings for notes that no longer exist or moved to a different folder.
-  3. Add listings for notes that exist in the folder but are missing from the listing.
-- Log all fixes in the grooming report.
+For each match:
+1. Read the backlog note and the matching project note.
+2. Append task line(s) to the project's `## Tasks` section.
+3. Preserve URL/summary/context as a brief entry in the project note.
+4. Delete the backlog note: `obsidian vault=Knowledge delete path="02_backlog/{file}"`
+5. Log in the grooming report.
 
-### 3. Create collection and index notes
+### Phase 6: Index/parent note validation
 
-After scanning both vaults, identify clusters of leaf notes that lack a shared parent. Create parent notes to give the tree structure.
+For each folder index and sub-index (these are few — read them all):
 
-**Memory vault — `collection` notes:**
-- Group leaf notes by shared theme within each folder (`patterns/`, `tools/`, `projects/`, `system/`).
-- If 3+ leaf notes share a common topic and no existing note serves as their parent → create a `collection` note.
-- Place the collection in the same folder as its children.
-- Format:
-  ```markdown
-   ---
-   type: collection
-   tags: [{inferred from children}]
-   created: {YYYY-MM-DD}
-   related: ["[[{folder-parent}]]"]
-   ---
+**Knowledge vault indexes:** `docs.md`, `knowledge.md`, `projects.md`, `backlog.md`, and all sub-indexes.
+**Memory vault folder parents:** `tools.md`, `patterns.md`, `projects.md`, `sessions.md`, and all collection notes.
 
-   # {Topic Name}
+For each:
+1. Read the index/parent note.
+2. Check that every `[[wikilink]]` in its listing resolves to a file in the expected folder.
+3. Remove listings for moved/deleted notes.
+4. Add listings for notes in the folder that are missing from the listing.
+5. Log all changes.
 
-   {2-3 sentence summary of what this collection covers.}
+### Phase 7: Multi-topic detection (lightweight)
 
-   ## Notes
+Do NOT read every file to check for multi-topic content. Instead:
+- Only check files that were read for other fixes in Phases 2-6.
+- If any of those files clearly covers 2+ separable topics, split them.
+- Each split note gets the original's folder location and relevant links/tags.
+- Update incoming links. Delete original only after splits are written.
 
-   - [[child-note-1]] — one-line summary
-   - [[child-note-2]] — one-line summary
-   - [[child-note-3]] — one-line summary
-   ```
-- The `related:` field MUST reference the folder parent: `[[tools]]` for `tools/`, `[[patterns]]` for `patterns/`, etc. Exception: `system/` collections use `[[MEMORY]]` as parent (no folder parent exists for system/).
-- Only list children that live in the same folder as the collection. Do NOT list cross-folder notes.
-- Write via filesystem — backtick safety.
-- Update each child's `related:` frontmatter to include the new collection as its parent (first entry).
+### Phase 8: Collection threshold enforcement
 
-**Knowledge vault — index and sub-index notes:**
+After any fixes that removed links or reparented notes:
+- Count each Memory vault collection's same-folder children (from the link graph built in Phase 1).
+- If a collection has fewer than 3 children, dissolve it:
+  1. Reparent each child to the folder parent.
+  2. Remove the collection from other notes' `related:`.
+  3. Delete the collection file.
+  4. Add former children to folder parent's listing.
+  5. Log in the grooming report.
 
-Two levels of hierarchy exist:
-1. **Folder indexes** — `docs.md`, `knowledge.md`, `projects.md`, `backlog.md`. Link up to `Home.md`. List sub-indexes under a `## Topics` section and unclustered leaves under thematic `##` sections.
-2. **Sub-indexes** — topic clusters within `06_docs/` and `07_knowledge/` (e.g., `agent-memory.md`, `terminal-shell.md`). Link up to their folder index. List their children with one-line summaries.
-
-Maintenance rules:
-- If a folder index or sub-index already exists, update it (add/remove children) — don't recreate.
-- Create a **new sub-index** when 3+ unparented leaves in `06_docs/` or `07_knowledge/` cluster around a theme. Name it after the theme. Add `See also: [[folder-index]]`. List children. Update each child's `See also:` to point to the new sub-index (not the folder index).
-- `05_notes/`: create a folder index only when 5+ notes exist. Skip if fewer.
-- `02_backlog/`: `backlog.md` is the index. No sub-indexes.
-- `03_active/`: `projects.md` is the index. No sub-indexes.
-- Leaves with <3 siblings in a theme: link directly to the folder index (no sub-index needed).
-
-Format for sub-indexes (Knowledge vault — no frontmatter):
-  ```markdown
-  # {Topic Name}
-
-  {Brief framing paragraph.}
-
-  See also: [[folder-index]]
-
-  - [[note-a]] — one-line summary
-  - [[note-b]] — one-line summary
-  ```
-
-Format for folder indexes:
-  ```markdown
-  # {Folder} Index
-
-  {Brief framing paragraph.}
-
-  See also: [[Home]]
-
-  ## Topics
-  - [[sub-index-a]] — description (N leaves)
-  - [[sub-index-b]] — description (N leaves)
-
-  ## {Unclustered Theme}
-  - [[note-c]] — one-line summary
-  ```
-
-**Rules for parent creation:**
-- Merge-first: check if a natural parent already exists (project note, existing doc, existing collection) before creating a new one.
-- One level deep: don't create grandparent notes. If collections themselves cluster, a future run can address that.
-- Report every new collection/index note in the grooming report.
-
-### 4. Write grooming reports
+### Phase 9: Write grooming reports
 
 Write a separate report to each vault.
 
-**Important:** Grooming reports must NOT contain `[[wikilinks]]` or any other link syntax. Use plain text for all file names and note references. Links in reports create noise in the knowledge graph — every mention would show up as a backlink on the target note.
+**Important:** Grooming reports must NOT contain `[[wikilinks]]`. Use plain text for all file names and note references.
 
 **Knowledge vault report:**
 ```
-obsidian vault=Knowledge create path="00_system/grooming-reports/{YYYY-MM-DD}.md" content="# Grooming Report — {YYYY-MM-DD}\n\n## Summary\n\n- {N} issues found, {M} fixed, {P} backlog notes promoted, {C} collections created\n\n## Fixed\n\n- ...\n\n## Promoted to Projects\n\n- 02_backlog/{file} → 03_active/{project}.md\n- ...\n\n## Collections Created\n\n- 07_knowledge/knowledge-index.md (aggregates: note-a, note-b, note-c)\n- ...\n\n## Needs Review\n\n- ..."
+obsidian vault=Knowledge create path="00_system/grooming-reports/{YYYY-MM-DD}.md" content="# Grooming Report — {YYYY-MM-DD}\n\n## Summary\n\n- {N} issues found, {M} fixed, {P} backlog notes promoted, {C} collections created\n\n## Fixed\n\n- ...\n\n## Promoted to Projects\n\n- ...\n\n## Needs Review\n\n- ..."
 ```
 
 **Memory vault report** (write via filesystem for backtick safety):
 Write to `~/Vaults/Memory/system/grooming-reports/{YYYY-MM-DD}.md`:
 ```markdown
+---
+type: reference
+tags: [grooming, report]
+created: YYYY-MM-DD
+related: ["[[reports]]"]
+---
+
 # Grooming Report — {YYYY-MM-DD}
 
 ## Summary
@@ -226,58 +178,33 @@ Write to `~/Vaults/Memory/system/grooming-reports/{YYYY-MM-DD}.md`:
 
 - ...
 
-## Collections Created
-
-- tools/shell-environment.md (aggregates: node-nvm-bun-zshrc-setup, shell-optimization, terminal-setup)
-- ...
-
 ## Needs Review
 
 - ...
 ```
 
-### 5. Print technical log
+### Phase 10: Print technical log
 
-Print all actions taken to stdout (captured by launchd to `logs/vault-grooming.out.log`).
+Print all actions taken to stdout (captured by launchd).
 
 ## Rules
 
+- **Performance first.** Use `rg` and targeted reads. Never read all files. The link graph from Phase 1 drives everything.
 - Always include `vault=Knowledge` or `vault=Memory` in every `obsidian` command.
-- Knowledge vault: ONLY delete `02_backlog/` notes that were successfully promoted into a `03_active/` project note. Never delete anything else.
+- Knowledge vault: ONLY delete `02_backlog/` notes that were successfully promoted. Never delete anything else.
 - Memory vault: ONLY delete truly empty/artifact files (zero content below frontmatter). Everything else is reported.
-- When fixing broken wikilinks, log the before and after in the grooming report so changes can be reviewed.
+- When fixing broken wikilinks, log before and after in the grooming report.
 - **Tree-graph linking policy:** Links must build a traversable tree, not a dense mesh.
   - Every note gets exactly **1 parent link** — the broader topic or collection it belongs under.
   - Plus **0-3 dependency links** — notes required to understand this one.
-  - No sibling links. Notes at the same level share a parent; that's enough for traversal.
-  - No bidirectional links unless there's a true mutual dependency (A requires B AND B requires A).
-  - Cross-vault links only through hub notes (`MEMORY.md`, project notes in `03_active/`).
-  - Max outgoing links per leaf note: 4 (1 parent + 3 deps). Collection/index notes have no cap (they link down to all children).
-  - When in doubt, link less. A sparse tree is navigable; a dense mesh is noise.
-- **Body `[[wikilinks]]` in Memory vault.** Leaf notes must NOT contain `[[wikilinks]]` to other leaf notes anywhere in body text. Use plain text for references to other notes. Only allowed body wikilinks: parent notes linking down to children (e.g., folder parents listing their leaves, collections listing their children). If a leaf has body wikilinks to other leaves, convert them to plain text during grooming.
-- **Memory vault parent validation.** Every leaf note's `related:` first entry MUST be its folder parent (`[[tools]]`, `[[patterns]]`, `[[projects]]`, `[[sessions]]`) or a collection note in the same folder. If first entry is another leaf note or a cross-folder reference, fix it — set the folder parent as first entry, keep the rest as deps (max 3 total).
-- **Collection threshold enforcement.** After any grooming pass that removes links or reparents notes:
-  - Count each collection's **same-folder children** (notes in the same folder whose `related:` first entry is the collection).
-  - If a collection has **fewer than 3 same-folder children**, dissolve it:
-    1. Reparent each child's `related:` first entry to the folder parent (e.g., `[[tools]]`).
-    2. Remove the collection from any other notes' `related:` dep lists.
-    3. Remove the collection's listing from the folder parent.
-    4. Delete the collection file.
-    5. Add the former children to the folder parent's uncollected list.
-    6. Log the dissolution in the grooming report.
-  - Collections only list notes that live in their same folder. Cross-folder notes can reference a collection as a dependency in `related:` but are NOT listed as collection children.
-- **Grooming report frontmatter.** Every Memory vault grooming report must have frontmatter with `related: ["[[reports]]"]`. Template:
-  ```markdown
-  ---
-  type: reference
-  tags: [grooming, report]
-  created: YYYY-MM-DD
-  related: ["[[reports]]"]
-  ---
-  ```
-- **Dangling wikilinks.** Every `[[wikilink]]` in every file must resolve to an existing note. If a wikilink points to a non-existent note, either create the target note or convert the wikilink to plain text. Log each fix in the grooming report.
+  - No sibling links. No bidirectional links unless true mutual dependency.
+  - Cross-vault links only through hub notes (`MEMORY.md`, `03_active/` project notes).
+  - Max outgoing links per leaf note: 4 (1 parent + 3 deps). Collection/index notes have no cap.
+  - When in doubt, link less.
+- **Body `[[wikilinks]]` in Memory vault.** Leaf notes must NOT contain `[[wikilinks]]` to other leaf notes in body text. Only parent/collection notes link down to children. If found during targeted reads, convert to plain text.
+- **Memory vault parent validation.** Every leaf note's `related:` first entry MUST be its folder parent or a same-folder collection. Fix if wrong.
+- **Dangling wikilinks.** Every `[[wikilink]]` must resolve to an existing note. Convert to plain text if target doesn't exist.
 - Frontmatter fixes in Memory vault: use the schema from `~/Vaults/AGENTS.md`. Use `stat` for `created` date, fall back to `unknown`.
 - Memory vault file writes go through the filesystem (`~/Vaults/Memory/...`), not the obsidian CLI — backtick safety.
-- Grooming reports go in each vault's own grooming-reports folder.
-- If `qmd` is on PATH, use `qmd search` for finding related notes to link orphans. It provides better semantic matching than simple keyword search.
-- When splitting multi-topic notes: delete the original only after all split notes are written and all incoming links are updated. Log the original path and all new paths in the grooming report.
+- If `qmd` is on PATH, use `qmd search` for finding related notes to link orphans.
+- No subagent delegation for vault scans. The `rg`-based approach is faster and more predictable than spawning subagents that read every file.

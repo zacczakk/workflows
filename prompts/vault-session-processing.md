@@ -42,6 +42,7 @@ d. **Create or update target notes.** For each extractable item:
      ```markdown
      ---
      type: {pattern | tool | project | reference}
+     summary: "{one-line plain-text summary, 15-25 words, no wikilinks}"
      tags: []
      created: YYYY-MM-DD
      related: ["[[note-name]]"]
@@ -52,7 +53,8 @@ d. **Create or update target notes.** For each extractable item:
 
      {Distilled content — concise, actionable, with [[wikilinks]]}
      ```
-   - For merged notes: preserve existing frontmatter, append or update content sections.
+   - The `summary` field is mandatory on all new notes. It must be a single line of plain text that captures the core insight — what an agent needs to know without reading the body. No wikilinks, no markdown.
+   - For merged notes: preserve existing frontmatter, append or update content sections. Add `summary` if missing.
 
 e. **Leave the session note in place.** Do NOT delete it. The consolidation workflow will read unconsolidated session notes for cross-cutting pattern synthesis, then handle cleanup.
    - If the session note has `consolidated: false` in frontmatter (or no `consolidated` field), leave it as-is.
@@ -74,7 +76,7 @@ Processed {N} session notes:
 - One note per topic. If a session covers 5 topics, that's up to 5 target notes.
 - Merge over create. Always check for existing notes first — extend them rather than creating near-duplicates.
 - Skip noise. Routine back-and-forth, dead ends, and obvious things are not worth extracting.
-- Every extracted note MUST have valid frontmatter (`type`, `tags`, `created`, `related`).
+- Every extracted note MUST have valid frontmatter (`type`, `summary`, `tags`, `created`, `related`).
 - **Tree-graph linking.** Populate `related:` with the note's **folder parent first** and up to 2 direct dependencies. Max 3 entries. Folder parents by folder: `tools/` → `[[tools]]`, `patterns/` → `[[patterns]]`, `projects/` → `[[projects]]`, `sessions/` → `[[sessions]]`. If a collection exists in the same folder for this topic, use the collection instead. Don't pad with tangential connections. If only a parent exists, `["[[parent]]"]` is fine.
 - **No body `[[wikilinks]]` to other leaf notes.** Use plain text for references to other Memory vault notes within body content. The only allowed body wikilinks are from parent/collection notes listing their children.
 - Always include `vault=Memory` in every `obsidian` command.
