@@ -19,6 +19,7 @@ workflows = [
   "vault-grooming",
   "vault-knowledge-distillation",
   "vault-consolidation",
+  "vault-retrieval-practice",
 ]
 
 # ── Workflows ──────────────────────────────────────────────────────
@@ -64,3 +65,11 @@ model = "github-copilot/claude-opus-4.6"
 description = "Synthesize cross-cutting insights from recent session notes"
 timeout = 3600
 cadence_days = 3
+
+[workflows.vault-retrieval-practice]
+type = "agent"
+prompt = "prompts/vault-retrieval-practice.md"
+model = "github-copilot/claude-opus-4.6"
+description = "Spot-check Memory vault notes for accuracy against current reality"
+timeout = 1800
+cadence_days = 7
