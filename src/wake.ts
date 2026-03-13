@@ -15,7 +15,7 @@ const c = {
 function earliestMinute(cfg: Config): number | null {
   let earliest: number | null = null;
   for (const sched of Object.values(cfg.schedules)) {
-    if (!sched.enabled) continue;
+    if (!sched.enabled || sched.kind !== "calendar") continue;
     const mins = sched.time.hour * 60 + sched.time.minute;
     if (earliest === null || mins < earliest) earliest = mins;
   }

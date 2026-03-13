@@ -64,6 +64,39 @@ export function generateRunnerPlist(
 </plist>`;
 }
 
+export function generateIntervalPlist(
+  cfg: Config,
+  scheduleName: string,
+  intervalSeconds: number,
+  root: string,
+  logPath: string,
+): string {
+  const lbl = scheduleRunnerLabel(cfg, scheduleName);
+  const wfBin = resolve(root, "bin/wf");
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>${escapeXml(lbl)}</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/zsh</string>
+        <string>-lc</string>
+        <string>${escapeXml(wfBin)} run ${escapeXml(scheduleName)}</string>
+    </array>
+    <key>StartInterval</key>
+    <integer>${intervalSeconds}</integer>
+    <key>StandardOutPath</key>
+    <string>${escapeXml(resolve(logPath, `${scheduleName}.out.log`))}</string>
+    <key>StandardErrorPath</key>
+    <string>${escapeXml(resolve(logPath, `${scheduleName}.err.log`))}</string>
+</dict>
+</plist>`;
+}
+
 export function generateWatchdogPlist(
   cfg: Config,
   scheduleName: string,

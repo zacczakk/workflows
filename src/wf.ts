@@ -9,11 +9,12 @@ import {
   writeFileSync,
 } from "fs";
 import { homedir } from "os";
-import type { Config, RunEntry, Workflow } from "./types";
+import type { CalendarSchedule, Config, RunEntry, Workflow } from "./types";
 import { validateConfig } from "./validate";
 import { readState, writeState, relativeTime, formatDuration, lastSuccessDate } from "./state";
 import {
   generateRunnerPlist,
+  generateIntervalPlist,
   generateWatchdogPlist,
   scheduleRunnerLabel,
   scheduleWatchdogLabel,
@@ -247,9 +248,12 @@ function cmdList() {
     const enabledTag = sched.enabled
       ? `${c.green}enabled${R}`
       : `${c.dim}disabled${R}`;
-    const time = fmtTime(sched.time.hour, sched.time.minute);
 
-    console.log(`  ${c.bold}${name}${R}  ${enabledTag}  ${c.dim}${time}${R}`);
+    const schedTag = sched.kind === "calendar"
+      ? fmtTime(sched.time.hour, sched.time.minute)
+      : `every ${formatDuration(sched.interval * 1000)}`;
+
+    console.log(`  ${c.bold}${name}${R}  ${enabledTag}  ${c.dim}${schedTag}${R}`);
     for (const wfName of sched.workflows) {
       const wf = cfg.workflows[wfName];
       const typeTag = wf.type === "agent" ? `${c.cyan}agent${R}` : `${c.yellow}script${R}`;
@@ -375,37 +379,43 @@ function cmdInstall() {
 
     // runner plist
     const rnLbl = scheduleRunnerLabel(cfg, name);
-    const rnPlist = generateRunnerPlist(cfg, name, sched.time, ROOT, logs);
+    const rnPlist = sched.kind === "interval"
+      ? generateIntervalPlist(cfg, name, sched.interval, ROOT, logs)
+      : generateRunnerPlist(cfg, name, sched.time, ROOT, logs);
     const rnLocal = resolve(dir, `${rnLbl}.plist`);
     const rnAgent = resolve(LAUNCH_AGENTS, `${rnLbl}.plist`);
     writeFileSync(rnLocal, rnPlist);
     writeFileSync(rnAgent, rnPlist);
     bootoutLabel(rnLbl);
     if (bootstrapPlist(rnAgent)) {
-      const time = fmtTime(sched.time.hour, sched.time.minute);
+      const schedTag = sched.kind === "interval"
+        ? `every ${formatDuration(sched.interval * 1000)}`
+        : fmtTime(sched.time.hour, sched.time.minute);
       console.log(
-        `  ${c.green}+${R}  ${c.bold}${name}${R}  ${c.dim}${time} → ${sched.workflows.length} workflows${R}`,
+        `  ${c.green}+${R}  ${c.bold}${name}${R}  ${c.dim}${schedTag} → ${sched.workflows.length} workflows${R}`,
       );
     } else {
       console.log(`  ${c.red}x${R}  ${c.bold}${name}${R}  ${c.red}failed to install${R}`);
     }
 
-    // watchdog plist
-    const wdTime = sched.watchdog ?? defaultWatchdogTime(cfg, sched);
-    const wdLbl = scheduleWatchdogLabel(cfg, name);
-    const wdPlist = generateWatchdogPlist(cfg, name, wdTime, logs);
-    const wdLocal = resolve(dir, `${wdLbl}.plist`);
-    const wdAgent = resolve(LAUNCH_AGENTS, `${wdLbl}.plist`);
-    writeFileSync(wdLocal, wdPlist);
-    writeFileSync(wdAgent, wdPlist);
-    bootoutLabel(wdLbl);
-    if (bootstrapPlist(wdAgent)) {
-      const time = fmtTime(wdTime.hour, wdTime.minute);
-      console.log(
-        `  ${c.green}+${R}  ${c.bold}${name}-watchdog${R}  ${c.dim}${time} → disablesleep 0${R}`,
-      );
-    } else {
-      console.log(`  ${c.red}x${R}  ${c.bold}${name}-watchdog${R}  ${c.red}failed to install${R}`);
+    // watchdog plist (calendar schedules only)
+    if (sched.kind === "calendar") {
+      const wdTime = sched.watchdog ?? defaultWatchdogTime(cfg, sched);
+      const wdLbl = scheduleWatchdogLabel(cfg, name);
+      const wdPlist = generateWatchdogPlist(cfg, name, wdTime, logs);
+      const wdLocal = resolve(dir, `${wdLbl}.plist`);
+      const wdAgent = resolve(LAUNCH_AGENTS, `${wdLbl}.plist`);
+      writeFileSync(wdLocal, wdPlist);
+      writeFileSync(wdAgent, wdPlist);
+      bootoutLabel(wdLbl);
+      if (bootstrapPlist(wdAgent)) {
+        const time = fmtTime(wdTime.hour, wdTime.minute);
+        console.log(
+          `  ${c.green}+${R}  ${c.bold}${name}-watchdog${R}  ${c.dim}${time} → disablesleep 0${R}`,
+        );
+      } else {
+        console.log(`  ${c.red}x${R}  ${c.bold}${name}-watchdog${R}  ${c.red}failed to install${R}`);
+      }
     }
   }
 
@@ -417,7 +427,7 @@ function cmdInstall() {
 
 function defaultWatchdogTime(
   cfg: Config,
-  sched: Config["schedules"][string],
+  sched: CalendarSchedule,
 ): { hour: number; minute: number } {
   let totalSeconds = 0;
   for (const wfName of sched.workflows) {
@@ -500,14 +510,17 @@ function cmdStatus() {
     const rnTag = rnRegistered
       ? `${c.green}scheduled${R}`
       : `${c.red}not scheduled${R}`;
-    const wdTag = wdRegistered
-      ? `${c.green}ok${R}`
-      : `${c.red}missing${R}`;
-    const time = fmtTime(sched.time.hour, sched.time.minute);
 
-    console.log(
-      `  ${c.bold}${name}${R}  ${enabledTag}  ${rnTag}  ${c.dim}${time}${R}  ${c.dim}watchdog ${wdTag}${R}`,
-    );
+    const schedTag = sched.kind === "calendar"
+      ? fmtTime(sched.time.hour, sched.time.minute)
+      : `every ${formatDuration(sched.interval * 1000)}`;
+
+    let line = `  ${c.bold}${name}${R}  ${enabledTag}  ${rnTag}  ${c.dim}${schedTag}${R}`;
+    if (sched.kind === "calendar") {
+      const wdTag = wdRegistered ? `${c.green}ok${R}` : `${c.red}missing${R}`;
+      line += `  ${c.dim}watchdog ${wdTag}${R}`;
+    }
+    console.log(line);
 
     if (sched.enabled && !rnRegistered) {
       console.log(`  ${c.bYellow}run wf install to register${R}`);

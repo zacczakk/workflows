@@ -22,6 +22,11 @@ workflows = [
   "vault-retrieval-practice",
 ]
 
+[schedules.sessions-export]
+interval = 1800
+enabled = true
+workflows = ["sessions-export"]
+
 # ── Workflows ──────────────────────────────────────────────────────
 
 [workflows.vault-embeddings]
@@ -73,3 +78,9 @@ model = "github-copilot/claude-opus-4.6"
 description = "Spot-check Memory vault notes for accuracy against current reality"
 timeout = 1800
 cadence_days = 7
+
+[workflows.sessions-export]
+type = "script"
+script = "scripts/sessions-export.ts"
+description = "Incremental export + index of OpenCode and Claude session history"
+timeout = 600

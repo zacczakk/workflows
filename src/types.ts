@@ -19,12 +19,22 @@ export interface Workflow {
 
 // ── Schedule ────────────────────────────────────────────────────────
 
-export interface ScheduleDef {
+export interface CalendarSchedule {
+  kind: "calendar";
   time: TimeSpec;
   watchdog?: TimeSpec;
   enabled: boolean;
   workflows: string[];
 }
+
+export interface IntervalSchedule {
+  kind: "interval";
+  interval: number; // seconds
+  enabled: boolean;
+  workflows: string[];
+}
+
+export type ScheduleDef = CalendarSchedule | IntervalSchedule;
 
 // ── Config ──────────────────────────────────────────────────────────
 

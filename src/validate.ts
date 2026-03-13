@@ -1,4 +1,4 @@
-import type { Config, TimeSpec } from "./types";
+import type { Config, CalendarSchedule, IntervalSchedule, TimeSpec } from "./types";
 
 class ConfigError extends Error {
   constructor(path: string, msg: string) {
@@ -152,14 +152,14 @@ export function validateConfig(parsed: unknown): Config {
     const s = raw as Record<string, unknown>;
     const path = `schedules.${name}`;
 
-    if (s.time === undefined) {
-      throw new ConfigError(path, "missing 'time'");
-    }
-    const time = validateTimeSpec(s.time, `${path}.time`);
+    const hasTime = s.time !== undefined;
+    const hasInterval = s.interval !== undefined;
 
-    let watchdog: TimeSpec | undefined;
-    if (s.watchdog !== undefined) {
-      watchdog = validateTimeSpec(s.watchdog, `${path}.watchdog`);
+    if (hasTime && hasInterval) {
+      throw new ConfigError(path, "cannot have both 'time' and 'interval'");
+    }
+    if (!hasTime && !hasInterval) {
+      throw new ConfigError(path, "must have either 'time' (calendar) or 'interval' (seconds)");
     }
 
     const enabled = requireBool(s, "enabled", path);
@@ -178,7 +178,23 @@ export function validateConfig(parsed: unknown): Config {
       wfNames.push(ref);
     }
 
-    schedules[name] = { time, watchdog, enabled, workflows: wfNames };
+    if (hasInterval) {
+      const interval = s.interval;
+      if (typeof interval !== "number" || !Number.isInteger(interval) || interval < 60) {
+        throw new ConfigError(path, "'interval' must be an integer >= 60 (seconds)");
+      }
+      if (s.watchdog !== undefined) {
+        throw new ConfigError(path, "interval schedules do not support 'watchdog'");
+      }
+      schedules[name] = { kind: "interval", interval, enabled, workflows: wfNames } satisfies IntervalSchedule;
+    } else {
+      const time = validateTimeSpec(s.time, `${path}.time`);
+      let watchdog: TimeSpec | undefined;
+      if (s.watchdog !== undefined) {
+        watchdog = validateTimeSpec(s.watchdog, `${path}.watchdog`);
+      }
+      schedules[name] = { kind: "calendar", time, watchdog, enabled, workflows: wfNames } satisfies CalendarSchedule;
+    }
   }
 
   return { meta, workflows, schedules };
