@@ -69,7 +69,7 @@ prompt = "prompts/vault-consolidation.md"
 model = "github-copilot/claude-opus-4.6"
 description = "Synthesize cross-cutting insights from recent session notes"
 timeout = 3600
-cadence_days = 3
+cadence_days = 1
 
 [workflows.vault-retrieval-practice]
 type = "agent"

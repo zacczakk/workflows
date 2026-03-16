@@ -10,7 +10,11 @@ Read `~/Vaults/AGENTS.md` for current vault conventions before starting.
 
 Session processing extracts individual facts. Grooming fixes structure. Distillation compresses for context injection. **Consolidation is the reasoning layer** — it asks: "what patterns emerge across recent work that no single session captured?"
 
-This runs every 3 days after the nightly pipeline. Input = unconsolidated session notes + recently modified vault notes. Output = new pattern notes, a consolidation report, and cleaned-up sessions.
+This runs nightly after session processing. Input = unconsolidated session notes + recently modified vault notes. Output = new pattern notes, a consolidation report, and cleaned-up sessions.
+
+**TTL Policy:** Session notes in the Memory vault are a hot cache — the Sessions vault (persistent Claude/OpenCode session lookup) is the long-term archive. Memory vault sessions should be consolidated quickly and purged aggressively:
+- Consolidated notes (`consolidated: true`): delete after 2 days.
+- Unconsolidated notes older than 5 days: force-consolidate (extract what's useful, then mark consolidated and delete). These are overdue — don't skip them.
 
 ## Steps
 
@@ -21,7 +25,8 @@ This runs every 3 days after the nightly pipeline. Input = unconsolidated sessio
 Read every session note. Partition into two sets:
 
 - **Unconsolidated:** `consolidated: false` in frontmatter, or no `consolidated` field at all.
-- **Stale consolidated:** `consolidated: true` AND `created` date is older than 7 days.
+- **Stale consolidated:** `consolidated: true` AND `created` date is older than 2 days.
+- **Overdue unconsolidated:** no `consolidated` field (or `consolidated: false`) AND `created` date is older than 5 days. These must be force-consolidated in step 2 — extract whatever is useful, then mark consolidated.
 
 If zero unconsolidated notes exist, skip to step 4 (staleness analysis). Still run steps 4-7.
 
@@ -116,13 +121,17 @@ For each unconsolidated session note processed in steps 2-4:
 
 ### 6. Clean up stale sessions
 
-For each session note where `consolidated: true` AND `created` date is older than 7 days:
-- Delete it: `obsidian vault=Memory delete path="sessions/{file}"`
-- Log the deletion in the consolidation report.
+Delete session notes that have served their purpose:
+
+**Delete if ANY of these conditions are met:**
+- `consolidated: true` AND `created` date is older than 2 days.
+- `consolidated: true` AND was just marked consolidated in step 5 of this run AND `created` date is older than 5 days (overdue notes — no grace period needed).
+
+For each deletion: `obsidian vault=Memory delete path="sessions/{file}"` and log it in the consolidation report.
 
 Do NOT delete any session note that is:
-- Less than 7 days old (regardless of consolidation status).
-- Still `consolidated: false` (consolidation hasn't processed it yet).
+- `consolidated: true` but less than 2 days old (grace period for verification).
+- Still `consolidated: false` and less than 5 days old (not yet overdue).
 
 ### 7. Write consolidation report
 

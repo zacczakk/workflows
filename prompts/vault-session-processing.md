@@ -68,8 +68,7 @@ d. **Create or update target notes.** For each extractable item:
    - For merged notes: preserve existing frontmatter, append or update content sections. Add `summary` if missing.
 
 e. **Leave the session note in place.** Do NOT delete it. The consolidation workflow will read unconsolidated session notes for cross-cutting pattern synthesis, then handle cleanup.
-   - If the session note has `consolidated: false` in frontmatter (or no `consolidated` field), leave it as-is.
-   - If the session note lacks a `consolidated` field entirely, add `consolidated: false` to its frontmatter.
+   - **REQUIRED:** Every processed session note MUST have `consolidated: false` in its frontmatter when you're done. If the field is missing, add it. If it's already `false`, leave it. This is not optional — the consolidation pipeline depends on this field to track lifecycle state. Write the updated frontmatter to disk via filesystem.
 
 ### 3. Print summary
 
