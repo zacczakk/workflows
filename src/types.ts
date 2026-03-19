@@ -36,6 +36,14 @@ export interface IntervalSchedule {
 
 export type ScheduleDef = CalendarSchedule | IntervalSchedule;
 
+// ── Service (long-running daemon) ───────────────────────────────────
+
+export interface Service {
+  command: string;
+  description: string;
+  enabled: boolean;
+}
+
 // ── Config ──────────────────────────────────────────────────────────
 
 export interface Config {
@@ -48,6 +56,7 @@ export interface Config {
   };
   workflows: Record<string, Workflow>;
   schedules: Record<string, ScheduleDef>;
+  services: Record<string, Service>;
 }
 
 // ── Run state ───────────────────────────────────────────────────────

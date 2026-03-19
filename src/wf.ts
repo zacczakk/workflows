@@ -16,8 +16,10 @@ import {
   generateRunnerPlist,
   generateIntervalPlist,
   generateWatchdogPlist,
+  generateServicePlist,
   scheduleRunnerLabel,
   scheduleWatchdogLabel,
+  serviceLabel,
 } from "./plist";
 import { configureScheduledWake, clearScheduledWake, printWakeStatus } from "./wake";
 
@@ -262,6 +264,18 @@ function cmdList() {
     }
     console.log("");
   }
+
+  const svcEntries = Object.entries(cfg.services);
+  if (svcEntries.length > 0) {
+    console.log(`  ${c.bold}services${R}`);
+    for (const [name, svc] of svcEntries) {
+      const enabledTag = svc.enabled
+        ? `${c.green}enabled${R}`
+        : `${c.dim}disabled${R}`;
+      console.log(`    ${c.dim}→${R} ${name}  ${enabledTag}  ${c.dim}${svc.description}${R}`);
+    }
+    console.log("");
+  }
 }
 
 async function cmdRun(name: string) {
@@ -419,10 +433,45 @@ function cmdInstall() {
     }
   }
 
+  // ── Services (long-running daemons) ───────────────────────────
+  const svcEntries = Object.entries(cfg.services);
+  if (svcEntries.length > 0) {
+    for (const [name, svc] of svcEntries) {
+      if (!svc.enabled) {
+        // bootout disabled services in case they were previously enabled
+        const lbl = serviceLabel(cfg, name);
+        if (loaded.has(lbl)) bootoutLabel(lbl);
+        const agent = resolve(LAUNCH_AGENTS, `${lbl}.plist`);
+        if (existsSync(agent)) unlinkSync(agent);
+        console.log(`  ${c.dim}-${R}  ${name}  ${c.dim}skipped (disabled)${R}`);
+        continue;
+      }
+
+      const lbl = serviceLabel(cfg, name);
+      const plist = generateServicePlist(cfg, name, svc, logs);
+      const localPath = resolve(dir, `${lbl}.plist`);
+      const agentPath = resolve(LAUNCH_AGENTS, `${lbl}.plist`);
+      writeFileSync(localPath, plist);
+      writeFileSync(agentPath, plist);
+      bootoutLabel(lbl);
+      if (bootstrapPlist(agentPath)) {
+        console.log(
+          `  ${c.green}+${R}  ${c.bold}${name}${R}  ${c.dim}service (keepalive)${R}`,
+        );
+      } else {
+        console.log(`  ${c.red}x${R}  ${c.bold}${name}${R}  ${c.red}failed to install${R}`);
+      }
+    }
+  }
+
   configureScheduledWake(cfg);
 
-  const enabled = Object.values(cfg.schedules).filter((s) => s.enabled).length;
-  console.log(`\n${c.green}installed${R} ${c.dim}${enabled} schedule(s)${R}\n`);
+  const enabledSchedules = Object.values(cfg.schedules).filter((s) => s.enabled).length;
+  const enabledServices = Object.values(cfg.services).filter((s) => s.enabled).length;
+  const parts: string[] = [];
+  if (enabledSchedules > 0) parts.push(`${enabledSchedules} schedule(s)`);
+  if (enabledServices > 0) parts.push(`${enabledServices} service(s)`);
+  console.log(`\n${c.green}installed${R} ${c.dim}${parts.join(", ")}${R}\n`);
 }
 
 function defaultWatchdogTime(
@@ -465,6 +514,17 @@ function cmdUninstall() {
     if (existsSync(wdAgent)) {
       unlinkSync(wdAgent);
       console.log(`  ${c.green}-${R}  ${c.bold}${name}-watchdog${R}  ${c.dim}removed${R}`);
+    }
+  }
+
+  // services
+  for (const name of Object.keys(cfg.services)) {
+    const lbl = serviceLabel(cfg, name);
+    bootoutLabel(lbl);
+    const agent = resolve(LAUNCH_AGENTS, `${lbl}.plist`);
+    if (existsSync(agent)) {
+      unlinkSync(agent);
+      console.log(`  ${c.green}-${R}  ${c.bold}${name}${R}  ${c.dim}service removed${R}`);
     }
   }
 
@@ -541,6 +601,27 @@ function cmdStatus() {
         console.log(detail);
       } else {
         console.log(`    ${c.dim}→${R} ${wfName}  ${c.dim}no runs yet${R}`);
+      }
+    }
+    console.log("");
+  }
+
+  // services
+  const svcEntries = Object.entries(cfg.services);
+  if (svcEntries.length > 0) {
+    for (const [name, svc] of svcEntries) {
+      const lbl = serviceLabel(cfg, name);
+      const registered = loaded.has(lbl);
+      const enabledTag = svc.enabled
+        ? `${c.green}enabled${R}`
+        : `${c.dim}disabled${R}`;
+      const runTag = registered
+        ? `${c.green}running${R}`
+        : `${c.red}stopped${R}`;
+      console.log(`  ${c.bold}${name}${R}  ${enabledTag}  ${runTag}  ${c.dim}service${R}`);
+
+      if (svc.enabled && !registered) {
+        console.log(`  ${c.bYellow}run wf install to register${R}`);
       }
     }
     console.log("");

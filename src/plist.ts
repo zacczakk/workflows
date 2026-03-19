@@ -1,5 +1,5 @@
 import { resolve } from "path";
-import type { Config, TimeSpec } from "./types";
+import type { Config, Service, TimeSpec } from "./types";
 
 // ── XML helpers ────────────────────────────────────────────────────
 
@@ -19,6 +19,10 @@ export function scheduleRunnerLabel(cfg: Config, name: string): string {
 
 export function scheduleWatchdogLabel(cfg: Config, name: string): string {
   return `${cfg.meta.label_prefix}.wf-${name}-watchdog`;
+}
+
+export function serviceLabel(cfg: Config, name: string): string {
+  return `${cfg.meta.label_prefix}.svc-${name}`;
 }
 
 // ── Plist generation ───────────────────────────────────────────────
@@ -131,6 +135,39 @@ export function generateWatchdogPlist(
     <string>${escapeXml(resolve(logPath, `${scheduleName}-watchdog.out.log`))}</string>
     <key>StandardErrorPath</key>
     <string>${escapeXml(resolve(logPath, `${scheduleName}-watchdog.err.log`))}</string>
+</dict>
+</plist>`;
+}
+
+export function generateServicePlist(
+  cfg: Config,
+  name: string,
+  svc: Service,
+  logPath: string,
+): string {
+  const lbl = serviceLabel(cfg, name);
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>${escapeXml(lbl)}</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/zsh</string>
+        <string>-lc</string>
+        <string>${escapeXml(svc.command)}</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>${escapeXml(resolve(logPath, `${name}.out.log`))}</string>
+    <key>StandardErrorPath</key>
+    <string>${escapeXml(resolve(logPath, `${name}.err.log`))}</string>
 </dict>
 </plist>`;
 }

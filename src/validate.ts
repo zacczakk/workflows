@@ -1,4 +1,4 @@
-import type { Config, CalendarSchedule, IntervalSchedule, TimeSpec } from "./types";
+import type { Config, CalendarSchedule, IntervalSchedule, Service, TimeSpec } from "./types";
 
 class ConfigError extends Error {
   constructor(path: string, msg: string) {
@@ -197,5 +197,25 @@ export function validateConfig(parsed: unknown): Config {
     }
   }
 
-  return { meta, workflows, schedules };
+  // ── Services (optional) ──────────────────────────────────────────
+  const services: Config["services"] = {};
+  const svcRaw = root.services as Record<string, unknown> | undefined;
+
+  if (svcRaw && typeof svcRaw === "object") {
+    for (const [name, raw] of Object.entries(svcRaw)) {
+      if (typeof raw !== "object" || raw === null) {
+        throw new ConfigError(`services.${name}`, "must be an object");
+      }
+      const s = raw as Record<string, unknown>;
+      const path = `services.${name}`;
+
+      const command = requireString(s, "command", path);
+      const description = requireString(s, "description", path);
+      const enabled = requireBool(s, "enabled", path);
+
+      services[name] = { command, description, enabled } satisfies Service;
+    }
+  }
+
+  return { meta, workflows, schedules, services };
 }
