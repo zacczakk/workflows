@@ -13,6 +13,7 @@ time = { hour = 1, minute = 0 }
 watchdog = { hour = 7, minute = 0 }
 enabled = true
 workflows = [
+  "skill-sync",
   "vault-embeddings",
   "vault-inbox-processing",
   "vault-session-processing",
@@ -28,6 +29,12 @@ enabled = true
 workflows = ["sessions-export"]
 
 # ── Workflows ──────────────────────────────────────────────────────
+
+[workflows.skill-sync]
+type = "script"
+script = "scripts/skill-sync.ts"
+description = "Sync remote agent skills from upstream repos"
+timeout = 300
 
 [workflows.vault-embeddings]
 type = "script"
@@ -84,3 +91,10 @@ type = "script"
 script = "scripts/sessions-export.ts"
 description = "Incremental export + index of OpenCode and Claude session history"
 timeout = 600
+
+# ── Services (long-running daemons) ────────────────────────────────
+
+[services.opencode-web]
+command = "/opt/homebrew/bin/opencode web"
+description = "OpenCode web UI — network-accessible with mDNS + auth"
+enabled = false
