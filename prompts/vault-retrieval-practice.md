@@ -90,10 +90,10 @@ Read `/tmp/rp_results.md` to recall findings, then write the full report to `~/V
 
 ```markdown
 ---
-type: reference
-tags: [retrieval-practice, report]
+type: sync-report
+tags: []
 created: YYYY-MM-DD
-related: ["[[retrieval-reports]]"]
+parent: "[[retrieval-reports]]"
 ---
 
 # Retrieval Practice Report — YYYY-MM-DD

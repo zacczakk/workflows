@@ -146,7 +146,7 @@ After any fixes that removed links or reparented notes:
 - Count each Memory vault collection's same-folder children (from the link graph built in Phase 1).
 - If a collection has fewer than 3 children, dissolve it:
   1. Reparent each child to the folder parent.
-  2. Remove the collection from other notes' `related:`.
+   2. Update former children's `parent:` to the folder parent.
   3. Delete the collection file.
   4. Add former children to folder parent's listing.
   5. Log in the grooming report.
@@ -186,8 +186,8 @@ obsidian vault=Knowledge create path="00_system/grooming-reports/{YYYY-MM-DD}.md
 Write to `~/Vaults/Memory/system/grooming-reports/{YYYY-MM-DD}.md`:
 ```markdown
 ---
-type: reference
-tags: [grooming, report]
+type: sync-report
+tags: []
 created: YYYY-MM-DD
 parent: "[[grooming-reports]]"
 ---

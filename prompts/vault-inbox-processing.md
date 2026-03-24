@@ -89,14 +89,14 @@ The Knowledge vault is at `~/Vaults/Knowledge/`.
         1. Find the matching project note: `obsidian vault=Knowledge files folder=03_active` — match by project name.
         2. Read the project note.
         3. Append the task line(s) to the project's `## Tasks` section.
-        4. If the item has a URL or summary worth preserving, add a `See also:` line or brief note under the relevant section.
+         4. If the item has a URL or summary worth preserving, add a brief note under the relevant section.
         5. Skip step j — do NOT create a standalone backlog note.
         6. Jump to step k (delete original).
       - If no matching `03_active/` project note exists, fall through to step j (create in backlog as normal).
 
    j. **Create enriched note in backlog** (non-project items only):
       ```
-       obsidian vault=Knowledge create path="02_backlog/{kebab-name}.md" content="# {Title}\n\n{summary or cleaned content}\n\n{original URL if present}\n\n## Tweet Context\n\n{only if source is a tweet — author, full text, engagement, quoted tweets}\n\n## Research\n\n{briefing — what it is, benefits, alternatives, fit for this system, caveats}\n\n## References\n\n- {source URLs from research}\n\n## Tasks\n\n- [ ] {action item} #{tag}"
+       obsidian vault=Knowledge create path="02_backlog/{kebab-name}.md" content="---\ntype: backlog\nparent: \"[[backlog]]\"\ncreated: YYYY-MM-DD\nsummary: \"{15-25 word plain-text summary}\"\ntags: []\nsource: {url if present}\n---\n\n# {Title}\n\n{summary or cleaned content}\n\n{original URL if present}\n\n## Tweet Context\n\n{only if source is a tweet — author, full text, engagement, quoted tweets}\n\n## Research\n\n{briefing — what it is, benefits, alternatives, fit for this system, caveats}\n\n## References\n\n- {source URLs from research}\n\n## Tasks\n\n- [ ] {action item} #{tag}"
       ```
 
    k. **Delete the original:** `obsidian vault=Knowledge delete path="01_inbox/{file}"`
@@ -114,7 +114,7 @@ The Knowledge vault is at `~/Vaults/Knowledge/`.
 
 - Fully autonomous — no per-item confirmation. Just process and summarize.
 - **Inline instructions from Phil:** Notes may contain direct instructions addressed to "Fred" or the processing agent (e.g., "Fred, file this under X" or "research this deeply" or "skip research, just save"). Respect these instructions — they override default processing behavior for that item.
-- No frontmatter. Content only.
+- **Frontmatter required** on all backlog notes. Use Knowledge vault schema: `type: backlog`, `parent: "[[backlog]]"`, `created: YYYY-MM-DD`, `summary: "..."`, `tags: []`, `source: {url}` (if URL-sourced).
 - Every backlog note MUST have at least one `- [ ]` task line.
 - Always include `vault=Knowledge` in every `obsidian` command.
 - Use `obsidian vault=Knowledge` CLI for all vault operations (create, read, delete, files).
@@ -122,6 +122,6 @@ The Knowledge vault is at `~/Vaults/Knowledge/`.
 - Use Tavily search for deep topic research on every non-personal item. Skip research only for personal/trivial items (or if Phil's inline instructions say otherwise).
 - Kebab-case filenames derived from content, not original filename.
 - No duplicates. If a URL already exists in `02_backlog/`, enhance the existing note.
-- **Tree-graph linking.** Include `[[wikilinks]]` only to the note's nearest parent and direct dependencies (max 3 total). For `02_backlog/` notes, parent is `[[backlog]]`. For notes merged into `03_active/`, no extra links needed. Don't link siblings or tangentially related notes. Cross-vault links only through hub notes.
+- **Tree-graph linking.** For `02_backlog/` notes, set `parent: "[[backlog]]"` in frontmatter. For notes merged into `03_active/`, no extra links needed. Don't link siblings or tangentially related notes. Cross-vault links only through hub notes.
 - Do NOT delete any files in `02_backlog/`, `03_active/`, or `07_knowledge/`. Only delete processed `01_inbox/` originals.
 - Project-specific items go directly into `03_active/` project notes — not `02_backlog/`. Only create backlog notes for items with no matching active project.

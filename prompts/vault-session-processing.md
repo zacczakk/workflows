@@ -56,8 +56,7 @@ d. **Create or update target notes.** For each extractable item:
      summary: "{one-line plain-text summary, 15-25 words, no wikilinks}"
      tags: []
      created: YYYY-MM-DD
-     related: ["[[note-name]]"]
-     depends-on: []
+      parent: "[[folder-parent-or-collection]]"
      ---
 
      # {Title}
@@ -86,8 +85,8 @@ Processed {N} session notes:
 - One note per topic. If a session covers 5 topics, that's up to 5 target notes.
 - Merge over create. Always check for existing notes first — extend them rather than creating near-duplicates.
 - Skip noise. Routine back-and-forth, dead ends, and obvious things are not worth extracting.
-- Every extracted note MUST have valid frontmatter (`type`, `summary`, `tags`, `created`, `related`).
-- **Tree-graph linking.** Populate `related:` with the note's **folder parent first** and up to 2 direct dependencies. Max 3 entries. Folder parents by folder: `tools/` → `[[tools]]`, `patterns/` → `[[patterns]]`, `projects/` → `[[projects]]`, `sessions/` → `[[sessions]]`. If a collection exists in the same folder for this topic, use the collection instead. Don't pad with tangential connections. If only a parent exists, `["[[parent]]"]` is fine.
+- Every extracted note MUST have valid frontmatter (`type`, `summary`, `tags`, `created`, `parent`).
+- **Tree-graph linking.** Set `parent:` to the note's folder parent or same-folder collection. Folder parents by folder: `tools/` → `"[[tools]]"`, `patterns/` → `"[[patterns]]"`, `projects/` → `"[[projects]]"`, `sessions/` → `"[[sessions]]"`. If a collection exists in the same folder for this topic, use the collection instead. Optional `related:` for up to 2 lateral dependencies only (not parent). Don't pad with tangential connections.
 - **No body `[[wikilinks]]` to other leaf notes.** Use plain text for references to other Memory vault notes within body content. The only allowed body wikilinks are from parent/collection notes listing their children.
 - Always include `vault=Memory` in every `obsidian` command.
 - Write notes via filesystem (`~/Vaults/Memory/...`), not `obsidian create` — backtick safety.

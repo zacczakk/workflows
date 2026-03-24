@@ -68,8 +68,7 @@ c. Write the new pattern note via filesystem (`~/Vaults/Memory/patterns/{kebab-n
    summary: "{one-line plain-text summary, 15-25 words, no wikilinks}"
    tags: [{inferred from content}]
    created: YYYY-MM-DD
-   related: ["[[patterns]]"]
-   depends-on: []
+    parent: "[[patterns]]"
    ---
 
    # {Pattern Title}
@@ -139,10 +138,10 @@ Write to `~/Vaults/Memory/system/consolidation-reports/{YYYY-MM-DD}.md` via file
 
 ```markdown
 ---
-type: reference
-tags: [consolidation, report]
+type: sync-report
+tags: []
 created: YYYY-MM-DD
-related: ["[[consolidation-reports]]"]
+parent: "[[consolidation-reports]]"
 ---
 
 # Consolidation Report — {YYYY-MM-DD}
@@ -193,11 +192,11 @@ Print all actions taken to stdout (captured by launchd to `logs/consolidation.ou
 - Memory vault file writes go through the filesystem (`~/Vaults/Memory/...`), not the obsidian CLI — backtick safety.
 - **Merge over create.** Always check for existing notes before creating new patterns. Extend existing notes rather than creating near-duplicates.
 - **≥2 independent contexts required.** Don't create a pattern note from a single session. The insight must appear across different projects, days, or problem domains to qualify as a cross-cutting pattern.
-- **Tree-graph linking.** New pattern notes: `related: ["[[patterns]]"]` as first entry, plus up to 2 direct dependencies. Max 3 entries. No sibling links.
+- **Tree-graph linking.** New pattern notes: `parent: "[[patterns]]"` (or the relevant collection). Optional `related:` for up to 2 lateral dependencies. No sibling links.
 - **No body `[[wikilinks]]` between leaves.** New pattern notes must not contain wikilinks to other leaf notes in body text. Use plain text for references.
 - **Staleness is about contradiction, not age.** Don't flag a note as stale just because it's old. Flag it when evidence suggests the content is wrong, incomplete, or superseded. The exception: active projects with no recent session references get flagged as "possibly inactive" — that's a status question, not a content question.
 - **Conservative synthesis.** If the cross-cutting pattern isn't clear, don't force it. Better to skip a marginal insight than to create a vague, unhelpful pattern note.
 - **Don't modify non-session notes without reason.** This workflow creates new patterns and updates existing ones when merging. It does NOT restructure, rename, or reformat existing notes — that's grooming's job.
-- **Consolidation report frontmatter.** Must include `related: ["[[consolidation-reports]]"]` to integrate with the report collection hierarchy.
+- **Consolidation report frontmatter.** Must include `parent: "[[consolidation-reports]]"` to integrate with the report collection hierarchy.
 - If `qmd` is on PATH, prefer `qmd search` for all semantic matching. It provides better results than keyword search for finding related notes.
 - Do NOT modify notes outside the Memory vault. This workflow is Memory-vault-only.
