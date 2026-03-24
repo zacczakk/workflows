@@ -97,6 +97,22 @@ Scan for and fix:
 - Missing `summary` field — read the note body via `obsidian vault=Memory read path="..."` and write a 15-25 word plain-text summary into frontmatter. No wikilinks, no markdown in the summary.
 - Missing `consolidated` field on session notes.
 
+### Phase 4b: Knowledge vault 08_people/ frontmatter validation
+
+Use `rg` to check people-specific frontmatter fields:
+
+```bash
+# Person notes missing required fields
+rg -l --files-without-match '^role:' ~/Vaults/Knowledge/08_people/ppl/ --glob '*.md' 2>/dev/null
+rg -l --files-without-match '^department:' ~/Vaults/Knowledge/08_people/ppl/ --glob '*.md' 2>/dev/null
+rg -l --files-without-match '^projects:' ~/Vaults/Knowledge/08_people/ppl/ --glob '*.md' 2>/dev/null
+
+# Org nodes missing sector (skip sector-level nodes: Healthcare, Electronics, Life Science, Enabling Functions)
+rg -l --files-without-match '^sector:' ~/Vaults/Knowledge/08_people/org/ --glob '*.md' 2>/dev/null | grep -v -E '(Healthcare|Electronics|Life Science|Enabling Functions)\.md$'
+```
+
+For files with missing fields, read and fix. Person notes need: `role`, `department` (short code), `projects` (wikilinks array). Org department nodes need: `sector` (wikilink to top-level sector). Sector nodes (`Healthcare.md`, `Electronics.md`, `Life Science.md`, `Enabling Functions.md`) must NOT have `sector:` — they ARE the sector.
+
 ### Phase 5: Backlog promotion (Knowledge vault)
 
 ```bash
