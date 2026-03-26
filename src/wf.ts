@@ -163,6 +163,42 @@ function fmtTime(h: number, m: number): string {
 
 const KILL_GRACE = 5_000;
 
+const OPENCODE_DB = `${homedir()}/.local/share/opencode/opencode.db`;
+
+/**
+ * After `opencode run` exits 0, check whether the session it created contains
+ * any model errors (provider failures, auth errors, network timeouts, etc.).
+ * opencode ≥1.3.0 silently exits 0 on provider errors — this catches them.
+ *
+ * Returns the error message if one is found, null otherwise.
+ */
+function checkOpencodeSessionError(cwd: string, t0: number): string | null {
+  if (!existsSync(OPENCODE_DB)) return null;
+
+  const query = `
+    SELECT json_extract(m.data, '$.error.name') AS errName,
+           json_extract(m.data, '$.error.data.message') AS errMsg
+    FROM message m
+    JOIN session s ON m.session_id = s.id
+    WHERE s.directory = '${cwd}'
+      AND s.time_created >= ${t0}
+      AND json_extract(m.data, '$.error') IS NOT NULL
+    ORDER BY m.time_created DESC
+    LIMIT 1;
+  `;
+
+  const result = Bun.spawnSync(
+    ["/usr/bin/sqlite3", "-separator", "|", OPENCODE_DB, query],
+    { stdout: "pipe", stderr: "pipe" },
+  );
+
+  const row = result.stdout.toString().trim();
+  if (!row) return null;
+
+  const [errName, errMsg] = row.split("|");
+  return errMsg ? `${errName}: ${errMsg}` : errName;
+}
+
 async function runWorkflow(
   cfg: Config,
   name: string,
@@ -225,8 +261,21 @@ async function runWorkflow(
     }
   }
 
-  const code = proc.exitCode ?? 143;
+  let code = proc.exitCode ?? 143;
   const durationMs = Date.now() - t0;
+
+  // opencode ≥1.3.0 silently exits 0 on provider/network errors.
+  // Check the session DB for model errors and surface them.
+  if (code === 0 && wf.type === "agent") {
+    const sessionError = checkOpencodeSessionError(ROOT, t0);
+    if (sessionError) {
+      console.error(
+        `${c.bRed}error${R} ${c.bold}${name}${R} ${c.dim}opencode session failed: ${sessionError}${R}`,
+      );
+      code = 1;
+    }
+  }
+
   const entry: RunEntry = { startedAt, exitCode: code, durationMs };
   writeState(sd, name, entry, readState(sd, name));
 
