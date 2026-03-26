@@ -15,8 +15,9 @@ workflows.toml          defines workflows + schedules
        |
     wf run <sched>       disablesleep → run workflows sequentially → re-enable sleep
        |
-   type=agent           wf reads prompt, spawns opencode run
-   type=script          wf spawns bun run scripts/<name>.ts
+    type=agent           wf reads prompt, spawns opencode run
+                         → post-run: query opencode DB for session errors
+    type=script          wf spawns bun run scripts/<name>.ts
 ```
 
 ### Design principles (from Alfred)
@@ -55,10 +56,14 @@ Previous approach (`caffeinate -s`) only prevented idle sleep, not clamshell sle
     vault-inbox-processing.md         # agent instructions
     vault-session-processing.md
     vault-grooming.md
+    vault-backlog-triage.md
     vault-knowledge-distillation.md
     vault-consolidation.md
+    vault-retrieval-practice.md
   scripts/
     vault-embeddings.ts               # qmd update + embed (script-type)
+    skill-sync.ts                     # sync upstream skills via gh API
+    sessions-export.ts                # incremental opencode session export
   src/
     wf.ts                             # CLI dispatcher + commands
     types.ts                          # interfaces (Workflow, ScheduleDef, Config, etc.)
@@ -101,27 +106,50 @@ Timeouts are enforced in-process by `wf` (SIGTERM → 5s grace → SIGKILL). Not
 
 ### Schedules
 
-Meta-schedules group workflows into ordered sequential batches:
+Two schedule types supported:
 
+**Time-based** (daily at a fixed clock time, via launchd `StartCalendarInterval`):
 ```toml
 [schedules.nightly]
 time = { hour = 1, minute = 0 }
 watchdog = { hour = 7, minute = 0 }
 enabled = true
 workflows = [
+  "skill-sync",
   "vault-embeddings",
   "vault-inbox-processing",
   "vault-session-processing",
   "vault-grooming",
+  "vault-backlog-triage",
   "vault-knowledge-distillation",
   "vault-consolidation",
+  "vault-retrieval-practice",
 ]
 ```
 
-- `time` — when launchd fires `wf run <schedule>`
-- `watchdog` — safety-net plist that runs `pmset disablesleep 0` (auto-derived if omitted: trigger + sum of timeouts + 15min buffer)
+**Interval-based** (every N seconds, via launchd `StartInterval`):
+```toml
+[schedules.sessions-export]
+interval = 1800    # every 30 minutes
+enabled = true
+workflows = ["sessions-export"]
+```
+
+- `time` / `interval` — mutually exclusive trigger types
+- `watchdog` — safety-net plist that runs `pmset disablesleep 0` (time-based schedules only; auto-derived if omitted: trigger + sum of timeouts + 15min buffer)
 - `workflows` — ordered list; executed sequentially, next starts immediately after previous finishes
 - `enabled` — whether `wf install` registers this schedule
+
+### Cadence gating
+
+Workflows can declare `cadence_days` to skip runs when last success is recent:
+
+```toml
+[workflows.vault-retrieval-practice]
+cadence_days = 7
+```
+
+`wf` reads the state file before spawning. If `lastSuccess` is within `cadence_days`, it prints `skip` and moves to the next workflow. Direct `wf run <name>` bypasses cadence and always executes.
 
 ### Separation: prompts/ vs scripts/
 - `prompts/` — Pure markdown agent instructions. Clean syntax highlighting, no escaping, readable standalone.
@@ -160,15 +188,43 @@ launchd fires at 01:00 → /bin/zsh -lc "wf run nightly"
   → resolves schedule → ordered workflow list
   → disablesleep 1 (passwordless sudo)
   → for each workflow (sequential):
-      → type=agent:  read prompt, spawn opencode run
+      → check cadence_days — skip if last success too recent
+      → type=agent:  read prompt, spawn opencode run -m <model> <prompt>
+                     → wait for exit
+                     → if exit 0: query opencode DB for session errors
+                     → if session error found: override exit code to 1
       → type=script: spawn bun run scripts/<name>.ts
-      → enforce per-workflow timeout (SIGTERM → SIGKILL)
+      → enforce per-workflow timeout (SIGTERM → 5s grace → SIGKILL)
       → write state to state/<name>.json
   → disablesleep 0 (finally block + signal traps)
   → log to logs/<schedule>.out.log / .err.log
 ```
 
 Single workflow: `wf run <name>` — same sleep toggle, single workflow only.
+
+### opencode session error detection
+
+opencode ≥1.3.0 exits 0 silently when the model provider fails (network timeout, auth error, DNS failure). The agent produces no output, does no work, but `wf` would previously record success.
+
+After each agent exit 0, `wf` queries:
+
+```sql
+SELECT json_extract(m.data, '$.error.name'),
+       json_extract(m.data, '$.error.data.message')
+FROM message m
+JOIN session s ON m.session_id = s.id
+WHERE s.directory = '<cwd>'
+  AND s.time_created >= <t0>
+  AND json_extract(m.data, '$.error') IS NOT NULL
+ORDER BY m.time_created DESC
+LIMIT 1
+```
+
+- DB path: `~/.local/share/opencode/opencode.db`
+- `t0` = Unix timestamp (ms) at start of the workflow run
+- Uses `/usr/bin/sqlite3` directly — no PATH dependency, always available
+
+If a row is returned, the error name and message are printed and exit code is overridden to 1. Error types encountered in practice: `UnknownError` (TCP connection refused/timeout — "Was there a typo in the url or port?"), `APIError`, `ProviderAuthError`, `ContextOverflowError`.
 
 ## State tracking
 
@@ -192,9 +248,24 @@ Each `wf run` writes run state to `state/<name>.json`:
 
 ## Workflows
 
-All workflows run in the `nightly` schedule at 01:00, sequentially in this order:
+### Nightly schedule (01:00, sequential)
 
-### 1. vault-embeddings
+### 1. skill-sync
+
+| Field | Value |
+|-------|-------|
+| Type | `script` |
+| Script | `scripts/skill-sync.ts` |
+| Timeout | 5min |
+| Scope | Read-only (syncs to `~/.config/opencode/skill/`) |
+
+Fetches upstream skill repos and diffs local copies against upstream. Auto-sync skills are overwritten; manual-sync skills get diff reports only. Writes a summary to `~/Vaults/Memory/system/skill-sync-YYYY-MM-DD.md`.
+
+**Network transport:** uses `gh api /repos/{owner}/{repo}/tarball/HEAD` piped to `tar` — one HTTP request per repo via `gh`'s Go HTTP client. Does not use `git clone` or system DNS. Resilient to corporate DNS restrictions that block external resolution at runtime.
+
+Registry: `~/Repos/zacczakk/metronome/configs/skills/registry.json`
+
+### 2. vault-embeddings
 
 | Field | Value |
 |-------|-------|
@@ -206,7 +277,7 @@ All workflows run in the `nightly` schedule at 01:00, sequentially in this order
 
 Sources nvm, runs `qmd update && qmd embed`. No agent involved. Runs first to ensure search index is current for downstream workflows.
 
-### 2. vault-inbox-processing
+### 3. vault-inbox-processing
 
 | Field | Value |
 |-------|-------|
@@ -218,7 +289,7 @@ Sources nvm, runs `qmd update && qmd embed`. No agent involved. Runs first to en
 
 Lists inbox, fetches URLs, checks duplicates, creates enriched backlog notes, deletes originals.
 
-### 3. vault-session-processing
+### 4. vault-session-processing
 
 | Field | Value |
 |-------|-------|
@@ -230,7 +301,7 @@ Lists inbox, fetches URLs, checks duplicates, creates enriched backlog notes, de
 
 Distills session notes into patterns, tools, and project knowledge.
 
-### 4. vault-grooming
+### 5. vault-grooming
 
 | Field | Value |
 |-------|-------|
@@ -242,7 +313,20 @@ Distills session notes into patterns, tools, and project knowledge.
 
 Scans both vaults for broken wikilinks, invalid frontmatter, orphans, stubs. Writes grooming report to `00_system/grooming-reports/`.
 
-### 5. vault-knowledge-distillation
+### 6. vault-backlog-triage
+
+| Field | Value |
+|-------|-------|
+| Type | `agent` |
+| Prompt | `prompts/vault-backlog-triage.md` |
+| Model | `github-copilot/claude-opus-4.6` |
+| Timeout | 30min |
+| Scope | Edit in Knowledge vault |
+| Vaults | Knowledge |
+
+Reads `02_backlog/` notes, evaluates and prioritizes them, and rewrites `backlog.md` with classified, prioritized items. Runs after grooming so it operates on clean notes.
+
+### 7. vault-knowledge-distillation
 
 | Field | Value |
 |-------|-------|
@@ -254,7 +338,7 @@ Scans both vaults for broken wikilinks, invalid frontmatter, orphans, stubs. Wri
 
 Reads all Memory vault notes, distills into `MEMORY.md` at vault root. Runs after grooming so it summarizes clean state.
 
-### 6. vault-consolidation
+### 8. vault-consolidation
 
 | Field | Value |
 |-------|-------|
@@ -264,7 +348,34 @@ Reads all Memory vault notes, distills into `MEMORY.md` at vault root. Runs afte
 | Scope | Create + edit in Memory vault |
 | Vaults | Memory |
 
-Synthesizes cross-cutting insights from recent unconsolidated session notes. Marks processed notes as `consolidated: true`.
+Synthesizes cross-cutting insights from recent unconsolidated session notes. Marks processed notes as `consolidated: true`. Cadence-gated to once per day.
+
+### 9. vault-retrieval-practice
+
+| Field | Value |
+|-------|-------|
+| Type | `agent` |
+| Prompt | `prompts/vault-retrieval-practice.md` |
+| Model | `github-copilot/claude-opus-4.6` |
+| Timeout | 30min |
+| Cadence | 7 days |
+| Scope | Read + edit in Memory vault |
+| Vaults | Memory |
+
+Spot-checks a sample of Memory vault notes against current reality — verifies facts, flags stale content, corrects inaccuracies. Runs weekly; skipped on cadence if last success was less than 7 days ago.
+
+### Sessions export schedule (every 30 minutes)
+
+### sessions-export
+
+| Field | Value |
+|-------|-------|
+| Type | `script` |
+| Script | `scripts/sessions-export.ts` |
+| Timeout | 10min |
+| Schedule | `sessions-export` (interval: 1800s) |
+
+Incrementally exports OpenCode session history and updates the sessions search index. Runs continuously throughout the day on a 30-minute interval — not part of the nightly batch.
 
 ## wf CLI
 
@@ -283,7 +394,7 @@ Synthesizes cross-cutting insights from recent unconsolidated session notes. Mar
 - **Source layout**: `src/wf.ts` (CLI + commands), `src/types.ts` (interfaces), `src/validate.ts` (config validation), `src/state.ts` (run state), `src/plist.ts` (plist generation), `src/wake.ts` (pmset wake scheduling).
 - **TOML**: `import { TOML } from "bun"` — built-in parser, zero deps.
 - **Config validation**: Schema-level checks after parse (type enum, field exclusivity, timeout, schedule→workflow references).
-- **Plist generation**: `src/plist.ts` generates two plist types: `generateRunnerPlist()` (login shell → `wf run <schedule>`) and `generateWatchdogPlist()` (fires `pmset disablesleep 0`).
+- **Plist generation**: `src/plist.ts` generates two plist types: `generateRunnerPlist()` (login shell → `wf run <schedule>`) and `generateWatchdogPlist()` (fires `pmset disablesleep 0`). Interval schedules use `StartInterval`, time-based use `StartCalendarInterval`.
 - **Labels**: `<prefix>.wf-<schedule>` for runners, `<prefix>.wf-<schedule>-watchdog` for watchdogs.
 - **Legacy cleanup**: `wf install` and `wf uninstall` remove old per-workflow plists from previous architecture.
 - **Environment in plists**: Inherited from login shell (`/bin/zsh -lc`) which sources `~/.zprofile`. No hardcoded env vars in plist.
@@ -291,6 +402,7 @@ Synthesizes cross-cutting insights from recent unconsolidated session notes. Mar
 - **ANSI output**: Colored terminal output — green for healthy/enabled, red for errors/failures, yellow for warnings, cyan for agent type, dim for secondary info, bold for names.
 - **No npm deps** — pure Bun APIs.
 - **Compiled binary path**: Detects bundled vs dev mode (`/$bunfs` prefix check) for correct ROOT resolution.
+- **opencode session error detection**: `checkOpencodeSessionError(cwd, t0)` in `src/wf.ts` — post-run DB query via `/usr/bin/sqlite3` to catch silent provider failures introduced in opencode ≥1.3.0.
 
 ### Build
 ```bash
