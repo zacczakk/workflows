@@ -39,7 +39,7 @@ a. Read the note in full.
 b. Extract key themes, tools, patterns, and project references mentioned.
 
 c. Search for related existing notes:
-   - `qmd search "{key themes}" --json` for semantic matching (preferred).
+   - `qmd query "{key themes}" --json -c memory` for semantic matching (preferred).
    - `obsidian vault=Memory search query="{keywords}"` as fallback.
 
 d. For each theme, check:
@@ -57,7 +57,7 @@ a. Draft a pattern note:
    - Reference the source contexts (plain text, not wikilinks to sessions).
 
 b. Check one more time that no existing note covers this:
-   - `qmd search "{pattern title}" --json`
+   - `qmd query "{pattern title}" --json -c memory`
    - If a close match exists, **merge into the existing note** instead of creating a new one. Append new information, update stale content.
 
 c. Write the new pattern note via filesystem (`~/Vaults/Memory/patterns/{kebab-name}.md`):
@@ -198,5 +198,5 @@ Print all actions taken to stdout (captured by launchd to `logs/consolidation.ou
 - **Conservative synthesis.** If the cross-cutting pattern isn't clear, don't force it. Better to skip a marginal insight than to create a vague, unhelpful pattern note.
 - **Don't modify non-session notes without reason.** This workflow creates new patterns and updates existing ones when merging. It does NOT restructure, rename, or reformat existing notes — that's grooming's job.
 - **Consolidation report frontmatter.** Must include `parent: "[[consolidation-reports]]"` to integrate with the report collection hierarchy.
-- If `qmd` is on PATH, prefer `qmd search` for all semantic matching. It provides better results than keyword search for finding related notes.
+- If `qmd` is on PATH, prefer `qmd query` for all semantic matching. It provides better results than keyword search for finding related notes.
 - Do NOT modify notes outside the Memory vault. This workflow is Memory-vault-only.

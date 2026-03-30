@@ -163,7 +163,7 @@ All installed and on PATH via `~/.zprofile` (sourced by launchd login shell):
 | Tool | Location | Purpose |
 |------|----------|---------|
 | `opencode` | `/opt/homebrew/bin/opencode` | Agent runner (headless via `opencode run`) |
-| `qmd` | `~/.bun/bin/qmd` | Hybrid markdown search (BM25 + vector + reranking) |
+| `qmd` | npm global (Node) | Hybrid markdown search (BM25 + vector + reranking) |
 | `obsidian` | Obsidian.app CLI | Vault CRUD operations |
 | `bun` | `~/.bun/bin/bun` | Build wf.ts, run all scripts |
 | `node` | nvm Node 22 LTS | Required by qmd (native addon compatibility) |

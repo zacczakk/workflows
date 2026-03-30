@@ -39,7 +39,7 @@ Read `~/Vaults/AGENTS.md` for current vault conventions before starting.
 
 3. For notes WITHOUT a `summary:` field — read the full note to categorize and summarize. Add a `summary:` field to the frontmatter while you're there (backfill).
 
-4. If `qmd` is on PATH, use `qmd search` to cluster notes by topic instead of reading all sequentially.
+4. If `qmd` is on PATH, use `qmd query` to cluster notes by topic instead of reading all sequentially.
 
 5. Prioritize recently updated notes (`updated` or `created` frontmatter fields). Older, unchanged notes can keep their existing MEMORY.md entry if one exists.
 

@@ -142,4 +142,4 @@ If any check fails, fix it before exiting. **An exit without writing the report 
 - **Conservative scoring.** When in doubt, pick the less severe score. Catch real problems, not pedantic.
 - **Skip if blocked.** Can't verify a claim? Score "unverifiable" and move on. Don't hang.
 - Always include `vault=Memory` in every `obsidian` command.
-- If `qmd` is on PATH, use `qmd search` for finding related context.
+- If `qmd` is on PATH, use `qmd query` for finding related context.

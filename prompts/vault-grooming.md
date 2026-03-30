@@ -61,7 +61,7 @@ Only read files identified in Phase 1 as orphans or missing parent links. If the
 
 **Knowledge vault — orphan resolution:**
 - Read the orphan's `# Title` and first paragraph (not full body).
-- Use `obsidian vault=Knowledge search query="..."` or `qmd search` to find its logical parent.
+- Use `obsidian vault=Knowledge search query="..."` or `qmd query` to find its logical parent.
 - Fix the `parent:` frontmatter field to point to the nearest sub-index or folder index. Check sub-indexes first, then folder indexes, then project notes.
 - Do NOT add backlinks from other notes to the orphan.
 
@@ -252,6 +252,6 @@ Print all actions taken to stdout (captured by launchd).
 - Frontmatter fixes in Memory vault: use the schema from `~/Vaults/AGENTS.md`. Use `stat` for `created` date, fall back to `unknown`.
 - **Report parents.** Knowledge vault grooming reports must have `parent: "[[reports]]"`. Memory vault grooming reports must have `parent: "[[grooming-reports]]"`. Do not point reports to Home or MEMORY.
 - Memory vault file writes go through the filesystem (`~/Vaults/Memory/...`), not the obsidian CLI — backtick safety.
-- If `qmd` is on PATH, use `qmd search` for finding related notes to link orphans.
+- If `qmd` is on PATH, use `qmd query` for finding related notes to link orphans.
 - **MEMORY.md is a slim hub.** It links ONLY to the 5 folder parents (`system`, `projects`, `patterns`, `tools`, `sessions`) — never to individual leaf notes. If grooming finds MEMORY.md linking directly to leaves, remove those links and ensure the folder parent lists the leaf instead. The distillation workflow regenerates MEMORY.md; grooming just validates the structure.
 - **Subagent delegation for fix phases.** Phases 1, 5-10 run in the main agent (lightweight). Phases 2-4 (broken links, orphans, frontmatter) should be delegated to subagents for parallel execution. **Batch rule:** max 5 items per subagent. If there are 12 orphans, split into 3 subagents of 4 each. Each subagent prompt must include: (a) the exact file list to fix, (b) the specific action for each file, (c) all relevant data from Phase 1 (link targets, parent candidates). Keep subagent prompts self-contained — they cannot see the main agent's context. If a fix phase has ≤5 items total, run it inline instead of delegating.

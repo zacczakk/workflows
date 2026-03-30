@@ -42,7 +42,7 @@ b. **Classify extractable knowledge.** For each distinct insight, decision, or d
 
 c. **Check for existing notes.** Before creating a new note, search for existing ones that cover the same topic:
    - `obsidian vault=Memory search query="{topic keywords}"`
-   - If `qmd` is on PATH, prefer `qmd search "{topic}" --json` for semantic matching.
+   - If `qmd` is on PATH, prefer `qmd query "{topic}" --json -c memory` for semantic matching.
    - **If a match exists:** read the existing note and merge — append new information, update stale content. Do NOT create a duplicate.
    - **If no match:** create a new note (step d).
 
