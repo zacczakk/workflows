@@ -8,12 +8,12 @@ import {
 } from "../src/minutes-inbox-distillation";
 
 describe("normalizeInboxName", () => {
-  test("strips the Minutes date prefix and appends -summary", () => {
-    expect(normalizeInboxName("2026-04-10-team-sync.md")).toBe("team-sync-summary.md");
+  test("preserves the date prefix so recurring transcripts do not collide", () => {
+    expect(normalizeInboxName("2026-04-10-team-sync.md")).toBe("2026-04-10-team-sync-summary.md");
   });
 
-  test("falls back to meeting-summary for an empty stem", () => {
-    expect(normalizeInboxName("2026-04-10-.md")).toBe("meeting-summary.md");
+  test("falls back to dated meeting-summary for an empty stem", () => {
+    expect(normalizeInboxName("2026-04-10-.md")).toBe("2026-04-10-meeting-summary.md");
   });
 });
 

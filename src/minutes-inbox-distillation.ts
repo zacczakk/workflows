@@ -8,8 +8,8 @@ export interface ProjectContext {
   score: number;
 }
 
-const DATE_PREFIX = /^\d{4}-\d{2}-\d{2}-/;
 const WORD_RE = /[a-z0-9]+/g;
+const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
 const STOP_WORDS = new Set([
   "the",
   "and",
@@ -32,8 +32,9 @@ export function fingerprintFor(input: { size: number; mtimeMs: number }): string
 }
 
 export function normalizeInboxName(name: string): string {
-  const stripped = name.replace(/\.md$/i, "").replace(DATE_PREFIX, "");
+  const stripped = name.replace(/\.md$/i, "");
   const normalized = stripped.replace(/-+/g, "-").replace(/^-|-$/g, "");
+  if (DATE_ONLY.test(normalized)) return `${normalized}-meeting-summary.md`;
   return `${normalized || "meeting"}-summary.md`;
 }
 
