@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { mkdtempSync, readFileSync, writeFileSync } from "fs";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 
@@ -62,4 +62,32 @@ test("releaseLease does not remove a lease owned by another run", () => {
   if (first.acquired) releaseLease(lockPath, first.owner);
 
   expect(readFileSync(lockPath, "utf-8")).toContain("new-owner");
+});
+
+test("runner skips cleanly when the meetings directory is missing", () => {
+  const dir = mkdtempSync(join(tmpdir(), "minutes-missing-meetings-"));
+  const homeDir = join(dir, "home");
+  const activeDir = join(homeDir, "Vaults/Knowledge/03_active");
+  const missingMeetingsDir = join(dir, "missing-meetings");
+  const statePath = join(dir, "state.json");
+
+  mkdirSync(activeDir, { recursive: true });
+  writeFileSync(join(activeDir, "projects.md"), "# Projects\n");
+
+  const result = Bun.spawnSync([process.execPath, "scripts/minutes-inbox-distillation.ts"], {
+    cwd: join(import.meta.dir, ".."),
+    env: {
+      ...process.env,
+      HOME: homeDir,
+      MINUTES_MEETINGS_DIR: missingMeetingsDir,
+      MINUTES_STATE_PATH: statePath,
+    },
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+
+  expect(result.exitCode).toBe(0);
+  expect(result.stdout.toString()).toContain("skip meetings dir missing");
+  expect(result.stdout.toString()).toContain(missingMeetingsDir);
+  expect(result.stderr.toString()).toBe("");
 });

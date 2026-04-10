@@ -217,6 +217,11 @@ async function main(): Promise<number> {
     const projectIndex = readProjectIndex();
     const projectContexts = readProjectContexts();
 
+    if (!existsSync(MEETINGS_DIR)) {
+      console.log(`${new Date().toISOString()}: skip meetings dir missing ${MEETINGS_DIR}`);
+      return 0;
+    }
+
     let processed = 0;
     let skipped = 0;
     let failed = 0;
