@@ -33,6 +33,10 @@ tags: [minutes, meeting]
 
 - Summarize facts and decisions, not polished meeting prose.
 - Keep the note terse and reviewable.
+- Prioritize the actual business core of the meeting over long product-demo detail.
+- In `## Main Findings`, lead with partnership shape, commercial signal, concrete asks, decisions, and next steps when they exist.
+- Treat product demo details as secondary support unless the meeting is purely technical.
+- If the transcript title is generic or meaningless, derive a better title from the actual discussion.
 - Infer related projects only from the project context provided to you.
 - Use `[[project-name]]` wikilinks only when the project context clearly supports it.
 - Prefer `## Notes` as the merge target unless the transcript strongly points to another section.

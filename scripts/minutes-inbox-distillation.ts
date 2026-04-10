@@ -13,14 +13,17 @@ import {
 import { homedir } from "os";
 import { basename, dirname, resolve } from "path";
 import {
+  DistillationStateLike,
   fingerprintFor,
   normalizeInboxName,
+  parseProjectLinks,
   parseProjectContext,
+  seedExistingTranscripts,
   selectProjectContexts,
   validateInboxNote,
 } from "../src/minutes-inbox-distillation";
 
-interface DistillationState {
+interface DistillationState extends DistillationStateLike {
   processed: Record<string, { fingerprint: string; inboxPath: string; processedAt: string }>;
 }
 
@@ -104,6 +107,8 @@ export function releaseLease(lockPath = LEASE_PATH, owner?: string): void {
   unlinkSync(lockPath);
 }
 
+export { collectUnprocessedTranscripts };
+
 function readMarkdown(path: string): string {
   return readFileSync(path, "utf-8").trim();
 }
@@ -122,24 +127,98 @@ async function stableFingerprint(path: string): Promise<string | null> {
   return fingerprintFor({ size: second.size, mtimeMs: second.mtimeMs });
 }
 
-function readProjectIndex(): string {
-  return readMarkdown(resolve(ACTIVE_DIR, "projects.md"));
+function readProjectNote(name: string): string | null {
+  const path = resolve(ACTIVE_DIR, `${name}.md`);
+  if (!existsSync(path)) return null;
+  return readMarkdown(path);
+}
+
+function readProjectIndexes(): string[] {
+  const rootIndex = readProjectNote("projects");
+  if (!rootIndex) return [];
+
+  const queue = [rootIndex];
+  const seen = new Set<string>(["projects"]);
+  const indexes = [rootIndex];
+
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+    for (const link of parseProjectLinks(current)) {
+      if (seen.has(link)) continue;
+      seen.add(link);
+      if (!link.startsWith("projects-")) continue;
+      const note = readProjectNote(link);
+      if (!note) continue;
+      indexes.push(note);
+      queue.push(note);
+    }
+  }
+
+  return indexes;
 }
 
 function readProjectContexts() {
   return readdirSync(ACTIVE_DIR)
-    .filter((name) => name.endsWith(".md") && !name.startsWith("projects"))
+    .filter((name) => name.endsWith(".md") && name !== "projects.md" && !name.startsWith("projects-"))
     .map((name) => {
       const path = resolve(ACTIVE_DIR, name);
       return parseProjectContext(path, readMarkdown(path));
     });
 }
 
+function collectUnprocessedTranscripts(
+  meetingsDir: string,
+  state: DistillationState,
+  nowMs = Date.now(),
+): { pending: string[]; seeded: DistillationState } {
+  const transcriptPaths = readdirSync(meetingsDir)
+    .filter((entry) => entry.endsWith(".md"))
+    .map((entry) => resolve(meetingsDir, entry));
+
+  const fingerprintByPath = Object.fromEntries(
+    transcriptPaths.map((path) => {
+      const stat = statSync(path);
+      return [path, fingerprintFor({ size: stat.size, mtimeMs: stat.mtimeMs })];
+    }),
+  );
+
+  if (Object.keys(state.processed).length === 0 && transcriptPaths.length > 0) {
+    return {
+      pending: [],
+      seeded: seedExistingTranscripts(transcriptPaths, nowMs, fingerprintByPath),
+    };
+  }
+
+  const latestProcessedMs = Math.max(
+    0,
+    ...Object.values(state.processed)
+      .map((entry) => Date.parse(entry.processedAt))
+      .filter((value) => Number.isFinite(value)),
+  );
+
+  for (const path of transcriptPaths) {
+    if (state.processed[path]) continue;
+    const stat = statSync(path);
+    if (stat.mtimeMs <= latestProcessedMs) {
+      state.processed[path] = {
+        fingerprint: fingerprintByPath[path],
+        inboxPath: "",
+        processedAt: new Date(nowMs).toISOString(),
+      };
+    }
+  }
+
+  return {
+    pending: transcriptPaths.filter((path) => state.processed[path]?.fingerprint !== fingerprintByPath[path]),
+    seeded: state,
+  };
+}
+
 function buildPrompt(
   template: string,
   transcriptPath: string,
   transcriptMarkdown: string,
-  projectIndex: string,
+  projectIndexes: string[],
   candidateProjects: ReturnType<typeof readProjectContexts>,
 ): string {
   const projectContext = candidateProjects.length === 0
@@ -156,8 +235,8 @@ function buildPrompt(
     `\`${transcriptPath}\``,
     "## Transcript Markdown",
     transcriptMarkdown,
-    "## Active Project Index",
-    projectIndex,
+    "## Active Project Indexes",
+    projectIndexes.join("\n\n---\n\n"),
     "## Candidate Active Project Notes",
     projectContext,
   ].join("\n\n");
@@ -213,8 +292,8 @@ async function main(): Promise<number> {
 
   try {
     const template = readMarkdown(PROMPT_PATH);
-    const state = loadState();
-    const projectIndex = readProjectIndex();
+    let state = loadState();
+    const projectIndexes = readProjectIndexes();
     const projectContexts = readProjectContexts();
 
     if (!existsSync(MEETINGS_DIR)) {
@@ -222,12 +301,21 @@ async function main(): Promise<number> {
       return 0;
     }
 
+    const discovery = collectUnprocessedTranscripts(MEETINGS_DIR, state);
+    state = discovery.seeded;
+
+    if (Object.keys(discovery.seeded.processed).length > 0 && Object.values(discovery.seeded.processed).every((entry) => entry.inboxPath === "")) {
+      saveState(state);
+      console.log(`${new Date().toISOString()}: seeded ${Object.keys(state.processed).length} existing transcripts without processing`);
+      return 0;
+    }
+
     let processed = 0;
     let skipped = 0;
     let failed = 0;
 
-    for (const name of readdirSync(MEETINGS_DIR).filter((entry) => entry.endsWith(".md"))) {
-      const transcriptPath = resolve(MEETINGS_DIR, name);
+    for (const transcriptPath of discovery.pending) {
+      const name = basename(transcriptPath);
 
       try {
         const fingerprint = await stableFingerprint(transcriptPath);
@@ -249,7 +337,7 @@ async function main(): Promise<number> {
           template,
           transcriptPath,
           transcriptMarkdown,
-          projectIndex,
+          projectIndexes,
           candidateProjects,
         );
         const inboxMarkdown = await runDistillation(prompt);

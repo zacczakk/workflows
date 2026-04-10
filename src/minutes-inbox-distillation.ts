@@ -8,6 +8,10 @@ export interface ProjectContext {
   score: number;
 }
 
+export interface DistillationStateLike {
+  processed: Record<string, { fingerprint: string; inboxPath: string; processedAt: string }>;
+}
+
 const WORD_RE = /[a-z0-9]+/g;
 const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
 const STOP_WORDS = new Set([
@@ -43,6 +47,11 @@ function tokenize(text: string): string[] {
   return [...new Set(matches.filter((token) => token.length > 2 && !STOP_WORDS.has(token)))];
 }
 
+export function parseProjectLinks(markdown: string): string[] {
+  const links = markdown.match(/\[\[([^\]|#]+)(?:#[^\]|]+)?(?:\|[^\]]+)?\]\]/g) ?? [];
+  return [...new Set(links.map((link) => link.replace(/^\[\[/, "").replace(/\]\]$/, "").split("|")[0].split("#")[0].trim().toLowerCase()))];
+}
+
 export function parseProjectContext(path: string, markdown: string): ProjectContext {
   const title = markdown.match(/^#\s+(.+)$/m)?.[1]?.trim() ?? basename(path, ".md");
   const summary = markdown.match(/^summary:\s*["']?(.+?)["']?$/m)?.[1]?.trim() ?? "";
@@ -52,6 +61,7 @@ export function parseProjectContext(path: string, markdown: string): ProjectCont
 function scoreProjectContext(transcript: string, project: ProjectContext): number {
   const transcriptText = transcript.toLowerCase();
   const transcriptTokens = new Set(tokenize(transcript));
+  const projectTokens = new Set(tokenize(`${project.title} ${project.summary} ${project.content}`));
   let score = 0;
 
   for (const token of tokenize(project.title)) {
@@ -63,6 +73,10 @@ function scoreProjectContext(transcript: string, project: ProjectContext): numbe
 
   const stem = basename(project.path, ".md").toLowerCase();
   if (transcriptText.includes(stem)) score += 8;
+
+  for (const token of transcriptTokens) {
+    if (projectTokens.has(token)) score += 1;
+  }
 
   return score;
 }
@@ -107,4 +121,23 @@ export function validateInboxNote(note: string): { ok: boolean; errors: string[]
   }
 
   return { ok: errors.length === 0, errors };
+}
+
+export function seedExistingTranscripts(
+  transcriptPaths: string[],
+  nowMs: number,
+  fingerprintByPath: Record<string, string>,
+): DistillationStateLike {
+  const processed = Object.fromEntries(
+    transcriptPaths.map((path) => [
+      path,
+      {
+        fingerprint: fingerprintByPath[path] ?? "",
+        inboxPath: "",
+        processedAt: new Date(nowMs).toISOString(),
+      },
+    ]),
+  );
+
+  return { processed };
 }

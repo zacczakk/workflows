@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   fingerprintFor,
   normalizeInboxName,
+  parseProjectLinks,
   parseProjectContext,
   selectProjectContexts,
   validateInboxNote,
@@ -51,6 +52,33 @@ describe("selectProjectContexts", () => {
 
     expect(selected).toHaveLength(1);
     expect(selected[0].title).toBe("workflows");
+  });
+
+  test("matches project aliases and body context when the transcript never says the exact file name", () => {
+    const transcript = "The team wants a development partnership, a formal engagement, and next-call prep with Corvic stakeholders.";
+    const projects = [
+      parseProjectContext(
+        "/tmp/corvic.md",
+        `---\nsummary: "Corvic development partnership for Syntropy and Athinia pilots"\n---\n# Corvic\n\nDevelopment partnership with Corvic (corvic.ai).`,
+      ),
+      parseProjectContext(
+        "/tmp/workflows.md",
+        `---\nsummary: "Launchd automation"\n---\n# workflows`,
+      ),
+    ];
+
+    const selected = selectProjectContexts(transcript, projects, 5);
+
+    expect(selected).toHaveLength(1);
+    expect(selected[0].title).toBe("Corvic");
+  });
+});
+
+describe("parseProjectLinks", () => {
+  test("extracts linked project notes from an index note", () => {
+    const links = parseProjectLinks(`# Projects\n- [[projects-work]]\n- [[corvic]]\n- [[workflows|Workflows]]`);
+
+    expect(links).toEqual(["projects-work", "corvic", "workflows"]);
   });
 });
 

@@ -26,6 +26,7 @@ test("minutes prompt template defines the markdown output contract", () => {
     "## Actions",
     "## Related Projects",
     "## Merge Hints",
+    "Prioritize the actual business core of the meeting over long product-demo detail.",
     "Do not invent commitments or facts.",
   ]) {
     expect(prompt).toContain(phrase);

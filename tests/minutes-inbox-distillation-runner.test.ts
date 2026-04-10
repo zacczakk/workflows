@@ -1,10 +1,12 @@
 import { expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "fs";
+import { mkdirSync, mkdtempSync, readFileSync, statSync, utimesSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
+import { fingerprintFor } from "../src/minutes-inbox-distillation";
 
 import {
   acquireLease,
+  collectUnprocessedTranscripts,
   loadState,
   releaseLease,
 } from "../scripts/minutes-inbox-distillation";
@@ -90,4 +92,65 @@ test("runner skips cleanly when the meetings directory is missing", () => {
   expect(result.stdout.toString()).toContain("skip meetings dir missing");
   expect(result.stdout.toString()).toContain(missingMeetingsDir);
   expect(result.stderr.toString()).toBe("");
+});
+
+test("first run seeds existing transcripts instead of processing the backlog", () => {
+  const dir = mkdtempSync(join(tmpdir(), "minutes-bootstrap-"));
+  const meetingsDir = join(dir, "meetings");
+  const now = Date.now();
+
+  mkdirSync(meetingsDir, { recursive: true });
+  writeFileSync(join(meetingsDir, "2026-04-09-old.md"), "old");
+  writeFileSync(join(meetingsDir, "2026-04-10-new.md"), "new");
+
+  const oldPath = join(meetingsDir, "2026-04-09-old.md");
+  const newPath = join(meetingsDir, "2026-04-10-new.md");
+
+  const oldTime = new Date(now - 60_000);
+  const newTime = new Date(now + 60_000);
+  Bun.file(oldPath);
+  Bun.file(newPath);
+
+  const firstState = { processed: {} };
+  const firstRun = collectUnprocessedTranscripts(meetingsDir, firstState, now);
+  expect(firstRun.pending).toEqual([]);
+  expect(Object.keys(firstRun.seeded.processed).sort()).toEqual([oldPath, newPath].sort());
+
+  const secondState = firstRun.seeded;
+  writeFileSync(join(meetingsDir, "2026-04-10-latest.md"), "latest");
+  const latestPath = join(meetingsDir, "2026-04-10-latest.md");
+  const secondRun = collectUnprocessedTranscripts(meetingsDir, secondState, now + 120_000);
+  expect(secondRun.pending).toContain(latestPath);
+});
+
+test("existing state seeds older unknown transcripts and only processes newer arrivals", () => {
+  const dir = mkdtempSync(join(tmpdir(), "minutes-cutoff-"));
+  const meetingsDir = join(dir, "meetings");
+  mkdirSync(meetingsDir, { recursive: true });
+
+  const anchorPath = join(meetingsDir, "2026-04-09-anchor.md");
+  const oldPath = join(meetingsDir, "2026-04-09-old.md");
+  const newPath = join(meetingsDir, "2026-04-10-new.md");
+  writeFileSync(anchorPath, "anchor");
+  writeFileSync(oldPath, "old");
+  writeFileSync(newPath, "new");
+  utimesSync(oldPath, new Date(100_000), new Date(100_000));
+  utimesSync(anchorPath, new Date(150_000), new Date(150_000));
+  utimesSync(newPath, new Date(250_000), new Date(250_000));
+
+  const state = {
+    processed: {
+      [anchorPath]: {
+        fingerprint: fingerprintFor({ size: statSync(anchorPath).size, mtimeMs: statSync(anchorPath).mtimeMs }),
+        inboxPath: "01_inbox/kept-summary.md",
+        processedAt: new Date(200_000).toISOString(),
+      },
+    },
+  };
+
+  const result = collectUnprocessedTranscripts(meetingsDir, state, 300_000);
+
+  expect(result.pending).toEqual([newPath]);
+  expect(result.seeded.processed[oldPath]?.inboxPath).toBe("");
+  expect(result.seeded.processed[newPath]).toBeUndefined();
 });
