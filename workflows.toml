@@ -28,6 +28,11 @@ interval = 1800
 enabled = true
 workflows = ["sessions-export"]
 
+[schedules.minutes-inbox]
+interval = 300
+enabled = true
+workflows = ["minutes-inbox-distillation"]
+
 # ── Workflows ──────────────────────────────────────────────────────
 
 [workflows.skill-sync]
@@ -91,6 +96,12 @@ type = "script"
 script = "scripts/sessions-export.ts"
 description = "Incremental export + index of OpenCode and Claude session history"
 timeout = 600
+
+[workflows.minutes-inbox-distillation]
+type = "script"
+script = "scripts/minutes-inbox-distillation.ts"
+description = "Poll Minutes transcripts and write raw Knowledge inbox summary notes"
+timeout = 1800
 
 # ── Services (long-running daemons) ────────────────────────────────
 
