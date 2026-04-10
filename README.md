@@ -51,6 +51,12 @@ Sleep is disabled for the duration of the batch and re-enabled afterward (via `f
 |----------|------|---------|-------------|
 | `sessions-export` | script | 10m | Incremental export and index of OpenCode session history |
 
+### Interval workflows
+
+| Workflow | Type | Timeout | What it does |
+|----------|------|---------|-------------|
+| `minutes-inbox-distillation` | script | 30m | Poll `~/.minutes/meetings` every 5 minutes and create one raw summary note per transcript in `Knowledge/01_inbox` |
+
 ## CLI
 
 ```
@@ -157,6 +163,12 @@ timeout = 1800                          # optional, overrides default_timeout
 ```
 
 Schedules group workflows into ordered sequential batches. Workflows run in array order — the next starts immediately after the previous finishes.
+
+Environment overrides for the minutes inbox distillation workflow:
+
+- `MINUTES_MEETINGS_DIR`
+- `MINUTES_STATE_PATH`
+- `MINUTES_DISTILLATION_MODEL`
 
 Two schedule types:
 - **`time`** — fires at a fixed daily time via launchd `StartCalendarInterval`
