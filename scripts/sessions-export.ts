@@ -1,5 +1,5 @@
 const proc = Bun.spawn(
-  ["/Users/m332023/Repos/acsync/scripts/sessions", "export"],
+  ["/Users/m332023/Repos/zacczakk/metronome/scripts/sessions", "export"],
   { stdout: "inherit", stderr: "inherit" },
 );
 

@@ -18,6 +18,7 @@ workflows = [
   "vault-inbox-processing",
   "vault-session-processing",
   "vault-grooming",
+  "vault-backlog-triage",
   "vault-knowledge-distillation",
   "vault-consolidation",
   "vault-retrieval-practice",
@@ -62,6 +63,13 @@ prompt = "prompts/vault-grooming.md"
 model = "github-copilot/claude-opus-4.6"
 description = "Sweep both vaults for broken links, orphans, stale notes"
 timeout = 5400
+
+[workflows.vault-backlog-triage]
+type = "agent"
+prompt = "prompts/vault-backlog-triage.md"
+model = "github-copilot/claude-opus-4.6"
+description = "Evaluate backlog items and rewrite backlog.md with prioritized classifications"
+timeout = 1800
 
 [workflows.vault-knowledge-distillation]
 type = "agent"

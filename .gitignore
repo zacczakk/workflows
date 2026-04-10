@@ -3,4 +3,5 @@ logs/
 state/
 bin/
 node_modules/
+.worktrees/
 .DS_Store
