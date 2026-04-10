@@ -37,6 +37,7 @@ const LEASE_TTL_MS = 25 * 60 * 1_000;
 
 interface LeaseResult {
   acquired: boolean;
+  owner?: string;
   reason?: string;
 }
 
@@ -80,17 +81,26 @@ export function acquireLease(lockPath = LEASE_PATH, ttlMs = LEASE_TTL_MS): Lease
   }
 
   try {
+    const owner = `${process.pid}:${Date.now()}:${Math.random().toString(36).slice(2)}`;
     const fd = openSync(lockPath, "wx");
-    writeSync(fd, JSON.stringify({ pid: process.pid, acquiredAt: new Date().toISOString() }) + "\n");
+    writeSync(fd, JSON.stringify({ owner, pid: process.pid, acquiredAt: new Date().toISOString() }) + "\n");
     closeSync(fd);
-    return { acquired: true };
+    return { acquired: true, owner };
   } catch {
     return { acquired: false, reason: "lease race" };
   }
 }
 
-export function releaseLease(lockPath = LEASE_PATH): void {
+export function releaseLease(lockPath = LEASE_PATH, owner?: string): void {
   if (!existsSync(lockPath)) return;
+
+  try {
+    const raw = JSON.parse(readFileSync(lockPath, "utf-8")) as { owner?: string };
+    if (!owner || raw.owner !== owner) return;
+  } catch {
+    return;
+  }
+
   unlinkSync(lockPath);
 }
 
@@ -267,7 +277,7 @@ async function main(): Promise<number> {
     console.log(`${new Date().toISOString()}: minutes-inbox-distillation processed=${processed} skipped=${skipped} failed=${failed}`);
     return failed > 0 ? 1 : 0;
   } finally {
-    releaseLease();
+    releaseLease(LEASE_PATH, lease.owner);
   }
 }
 

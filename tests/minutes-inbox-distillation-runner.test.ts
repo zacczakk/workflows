@@ -49,3 +49,17 @@ test("acquireLease replaces stale lock files", () => {
 
   if (result.acquired) releaseLease(lockPath);
 });
+
+test("releaseLease does not remove a lease owned by another run", () => {
+  const dir = mkdtempSync(join(tmpdir(), "minutes-owner-lock-"));
+  const lockPath = join(dir, "runner.lock");
+
+  const first = acquireLease(lockPath, 30_000);
+  expect(first.acquired).toBe(true);
+
+  writeFileSync(lockPath, JSON.stringify({ owner: "new-owner", acquiredAt: new Date().toISOString() }) + "\n");
+
+  if (first.acquired) releaseLease(lockPath, first.owner);
+
+  expect(readFileSync(lockPath, "utf-8")).toContain("new-owner");
+});
