@@ -25,11 +25,17 @@ describe("fingerprintFor", () => {
 
 describe("parseProjectContext", () => {
   test("extracts title and summary from a project note", () => {
-    const note = `---\nsummary: "Launchd-based vault automation"\n---\n# workflows\n\nScheduled runs.`;
-    const parsed = parseProjectContext("/tmp/workflows.md", note);
+    const note = `---\nsummary: "Launchd-based vault automation"\n---\n# Workflow Automation\n\nScheduled runs.`;
+    const parsed = parseProjectContext("/tmp/project-note.md", note);
+
+    expect(parsed.title).toBe("Workflow Automation");
+    expect(parsed.summary).toBe("Launchd-based vault automation");
+  });
+
+  test("falls back to the file basename when no heading is present", () => {
+    const parsed = parseProjectContext("/tmp/workflows.md", "No heading here.");
 
     expect(parsed.title).toBe("workflows");
-    expect(parsed.summary).toBe("Launchd-based vault automation");
   });
 });
 
@@ -59,6 +65,16 @@ describe("validateInboxNote", () => {
     const result = validateInboxNote("# Meeting Summary: Broken");
     expect(result.ok).toBe(false);
     expect(result.errors).toContain("missing frontmatter");
+    expect(result.errors).toContain("missing section ## Related Projects");
+  });
+
+  test("rejects notes with an unclosed frontmatter block or heading-like body text", () => {
+    const note = `---\ntype: note\nparent: "[[Home]]"\ncreated: 2026-04-10\nsummary: "Minutes transcript distilled into findings, actions, and merge hints for active Knowledge vault project notes."\ntags: [minutes, meeting]\n# Meeting Summary: Team Sync\n\nBody mentions ## Source and ## Related Projects inline.`;
+    const result = validateInboxNote(note);
+
+    expect(result.ok).toBe(false);
+    expect(result.errors).toContain("missing frontmatter");
+    expect(result.errors).toContain("missing section ## Source");
     expect(result.errors).toContain("missing section ## Related Projects");
   });
 });

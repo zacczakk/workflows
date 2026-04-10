@@ -80,24 +80,29 @@ export function selectProjectContexts(
 
 export function validateInboxNote(note: string): { ok: boolean; errors: string[] } {
   const errors: string[] = [];
+  const frontmatter = note.match(/^---\n[\s\S]*?\n---\n/);
 
-  if (!note.startsWith("---\n")) errors.push("missing frontmatter");
-  if (!/type:\s*note/m.test(note)) errors.push("missing type: note");
-  if (!/parent:\s*["']?\[\[Home\]\]["']?/m.test(note)) errors.push("missing parent");
-  if (!/created:\s*\d{4}-\d{2}-\d{2}/m.test(note)) errors.push("missing created");
-  if (!/summary:\s*["']?.{15,}["']?/m.test(note)) errors.push("missing summary");
+  if (!frontmatter) {
+    errors.push("missing frontmatter");
+  } else {
+    const block = frontmatter[0];
+    if (!/\ntype:\s*note\s*(?:\n|$)/.test(block)) errors.push("missing type: note");
+    if (!/\nparent:\s*["']?\[\[Home\]\]["']?\s*(?:\n|$)/.test(block)) errors.push("missing parent");
+    if (!/\ncreated:\s*\d{4}-\d{2}-\d{2}\s*(?:\n|$)/.test(block)) errors.push("missing created");
+    if (!/\nsummary:\s*["']?.{15,}["']?\s*(?:\n|$)/.test(block)) errors.push("missing summary");
+  }
 
   const requiredSections = [
-    "# Meeting Summary:",
-    "## Source",
-    "## Main Findings",
-    "## Actions",
-    "## Related Projects",
-    "## Merge Hints",
+    /^# Meeting Summary:/m,
+    /^## Source$/m,
+    /^## Main Findings$/m,
+    /^## Actions$/m,
+    /^## Related Projects$/m,
+    /^## Merge Hints$/m,
   ];
 
   for (const heading of requiredSections) {
-    if (!note.includes(heading)) errors.push(`missing section ${heading}`);
+    if (!heading.test(note)) errors.push(`missing section ${heading.source.replace(/[\^$]/g, "")}`);
   }
 
   return { ok: errors.length === 0, errors };
