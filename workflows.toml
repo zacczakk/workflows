@@ -46,42 +46,42 @@ timeout = 1800
 [workflows.vault-inbox-processing]
 type = "agent"
 prompt = "prompts/vault-inbox-processing.md"
-model = "github-copilot/claude-opus-4.6"
+model = "github-copilot/gpt-5.4"
 description = "Process Knowledge vault inbox into enriched backlog notes"
 timeout = 3600
 
 [workflows.vault-session-processing]
 type = "agent"
 prompt = "prompts/vault-session-processing.md"
-model = "github-copilot/claude-opus-4.6"
+model = "github-copilot/gpt-5.4"
 description = "Distill session notes into patterns, tools, and project knowledge"
 timeout = 1800
 
 [workflows.vault-grooming]
 type = "agent"
 prompt = "prompts/vault-grooming.md"
-model = "github-copilot/claude-opus-4.6"
+model = "github-copilot/gpt-5.4"
 description = "Sweep both vaults for broken links, orphans, stale notes"
 timeout = 5400
 
 [workflows.vault-backlog-triage]
 type = "agent"
 prompt = "prompts/vault-backlog-triage.md"
-model = "github-copilot/claude-opus-4.6"
+model = "github-copilot/gpt-5.4"
 description = "Evaluate backlog items and rewrite backlog.md with prioritized classifications"
 timeout = 1800
 
 [workflows.vault-knowledge-distillation]
 type = "agent"
 prompt = "prompts/vault-knowledge-distillation.md"
-model = "github-copilot/claude-opus-4.6"
+model = "github-copilot/gpt-5.4"
 description = "Distill Memory vault into condensed MEMORY.md"
 timeout = 5400
 
 [workflows.vault-consolidation]
 type = "agent"
 prompt = "prompts/vault-consolidation.md"
-model = "github-copilot/claude-opus-4.6"
+model = "github-copilot/gpt-5.4"
 description = "Synthesize cross-cutting insights from recent session notes"
 timeout = 3600
 cadence_days = 1
@@ -89,7 +89,7 @@ cadence_days = 1
 [workflows.vault-retrieval-practice]
 type = "agent"
 prompt = "prompts/vault-retrieval-practice.md"
-model = "github-copilot/claude-opus-4.6"
+model = "github-copilot/gpt-5.4"
 description = "Spot-check Memory vault notes for accuracy against current reality"
 timeout = 1800
 cadence_days = 7

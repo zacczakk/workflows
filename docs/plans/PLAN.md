@@ -319,7 +319,7 @@ Scans both vaults for broken wikilinks, invalid frontmatter, orphans, stubs. Wri
 |-------|-------|
 | Type | `agent` |
 | Prompt | `prompts/vault-backlog-triage.md` |
-| Model | `github-copilot/claude-opus-4.6` |
+| Model | `github-copilot/gpt-5.4` |
 | Timeout | 30min |
 | Scope | Edit in Knowledge vault |
 | Vaults | Knowledge |
@@ -356,7 +356,7 @@ Synthesizes cross-cutting insights from recent unconsolidated session notes. Mar
 |-------|-------|
 | Type | `agent` |
 | Prompt | `prompts/vault-retrieval-practice.md` |
-| Model | `github-copilot/claude-opus-4.6` |
+| Model | `github-copilot/gpt-5.4` |
 | Timeout | 30min |
 | Cadence | 7 days |
 | Scope | Read + edit in Memory vault |

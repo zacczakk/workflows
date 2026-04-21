@@ -223,7 +223,7 @@ Error types caught: `UnknownError` (network/TCP), `APIError`, `ProviderAuthError
 
 ### Network failures at 1am
 
-Agent workflows use `github-copilot/claude-opus-4.6` as the model. If the machine is offline at 1am (wifi dropped, router cycled), `api.githubcopilot.com` is unreachable. The opencode silent exit bug means these failures were previously invisible — `wf status` showed all agent workflows as passing.
+Agent workflows use `github-copilot/gpt-5.4` as the model. If the machine is offline at 1am (wifi dropped, router cycled), `api.githubcopilot.com` is unreachable. The opencode silent exit bug means these failures were previously invisible — `wf status` showed all agent workflows as passing.
 
 With the DB check, offline nights now correctly show as failed and increment `consecutiveFailures` in state.
 
