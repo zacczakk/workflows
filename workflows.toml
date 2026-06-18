@@ -69,7 +69,7 @@ type = "agent"
 prompt = "prompts/vault-backlog-triage.md"
 model = "github-copilot/gpt-5.4"
 description = "Evaluate backlog items and rewrite backlog.md with prioritized classifications"
-timeout = 1800
+timeout = 3600
 
 [workflows.vault-knowledge-distillation]
 type = "agent"
