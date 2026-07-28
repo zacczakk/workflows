@@ -29,6 +29,11 @@ interval = 1800
 enabled = true
 workflows = ["sessions-export"]
 
+[schedules.log-maintenance]
+time = { hour = 0, minute = 55 }
+enabled = true
+workflows = ["log-maintenance"]
+
 # ── Workflows ──────────────────────────────────────────────────────
 
 [workflows.skill-sync]
@@ -46,42 +51,42 @@ timeout = 1800
 [workflows.vault-inbox-processing]
 type = "agent"
 prompt = "prompts/vault-inbox-processing.md"
-model = "github-copilot/gpt-5.4"
+model = "github-copilot/gpt-5.6-terra"
 description = "Process Knowledge vault inbox into enriched backlog notes"
 timeout = 3600
 
 [workflows.vault-session-processing]
 type = "agent"
 prompt = "prompts/vault-session-processing.md"
-model = "github-copilot/gpt-5.4"
+model = "github-copilot/gpt-5.6-terra"
 description = "Distill session notes into patterns, tools, and project knowledge"
 timeout = 1800
 
 [workflows.vault-grooming]
 type = "agent"
 prompt = "prompts/vault-grooming.md"
-model = "github-copilot/gpt-5.4"
+model = "github-copilot/gpt-5.6-sol"
 description = "Sweep both vaults for broken links, orphans, stale notes"
 timeout = 5400
 
 [workflows.vault-backlog-triage]
 type = "agent"
 prompt = "prompts/vault-backlog-triage.md"
-model = "github-copilot/gpt-5.4"
+model = "github-copilot/gpt-5.6-terra"
 description = "Evaluate backlog items and rewrite backlog.md with prioritized classifications"
 timeout = 3600
 
 [workflows.vault-knowledge-distillation]
 type = "agent"
 prompt = "prompts/vault-knowledge-distillation.md"
-model = "github-copilot/gpt-5.4"
+model = "github-copilot/gpt-5.6-terra"
 description = "Distill Memory vault into condensed MEMORY.md"
 timeout = 5400
 
 [workflows.vault-consolidation]
 type = "agent"
 prompt = "prompts/vault-consolidation.md"
-model = "github-copilot/gpt-5.4"
+model = "github-copilot/gpt-5.6-sol"
 description = "Synthesize cross-cutting insights from recent session notes"
 timeout = 3600
 cadence_days = 1
@@ -89,7 +94,7 @@ cadence_days = 1
 [workflows.vault-retrieval-practice]
 type = "agent"
 prompt = "prompts/vault-retrieval-practice.md"
-model = "github-copilot/gpt-5.4"
+model = "github-copilot/gpt-5.6-sol"
 description = "Spot-check Memory vault notes for accuracy against current reality"
 timeout = 1800
 cadence_days = 7
@@ -99,6 +104,12 @@ type = "script"
 script = "scripts/sessions-export.ts"
 description = "Incremental export + index of OpenCode and Claude session history"
 timeout = 600
+
+[workflows.log-maintenance]
+type = "script"
+script = "scripts/log-maintenance.ts"
+description = "Rotate workflow logs above 10 MiB and retain five archives"
+timeout = 300
 
 # ── Services (long-running daemons) ────────────────────────────────
 

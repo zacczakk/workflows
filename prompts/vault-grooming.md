@@ -25,8 +25,8 @@ Build a complete wikilink adjacency map for both vaults using `rg`. This replace
 
 ```bash
 # 1a. Get all files in both vaults
-obsidian vault=Knowledge files 2>/dev/null > /tmp/knowledge_files.txt
-obsidian vault=Memory files 2>/dev/null > /tmp/memory_files.txt
+rg --files ~/Vaults/Knowledge/ > /tmp/knowledge_files.txt
+rg --files ~/Vaults/Memory/ > /tmp/memory_files.txt
 
 # 1b. Extract all wikilinks from every file (filename:line:match)
 rg -o '\[\[([^\]|#]+)[^\]]*\]\]' --no-heading -r '$1' ~/Vaults/Knowledge/ > /tmp/knowledge_links.txt
@@ -61,7 +61,7 @@ Only read files identified in Phase 1 as orphans or missing parent links. If the
 
 **Knowledge vault — orphan resolution:**
 - Read the orphan's `# Title` and first paragraph (not full body).
-- Use `obsidian vault=Knowledge search query="..."` or `qmd query` to find its logical parent.
+- Use `rg` or `qmd query` to find its logical parent.
 - Fix the `parent:` frontmatter field to point to the nearest sub-index or folder index. Check sub-indexes first, then folder indexes, then project notes.
 - Do NOT add backlinks from other notes to the orphan.
 
@@ -89,12 +89,12 @@ rg -l --files-without-match '^created:' ~/Vaults/Memory/ --glob '*.md' --glob '!
 rg -l --files-without-match '^consolidated:' ~/Vaults/Memory/sessions/ --glob '*.md' 2>/dev/null
 ```
 
-For files with missing required fields, read them via `obsidian vault=Memory read path="..."` to understand content and fix frontmatter. Write fixes via filesystem. All frontmatter fixes use the schema from `~/Vaults/AGENTS.md`.
+For files with missing required fields, read them directly to understand content and fix frontmatter. Write fixes via filesystem. All frontmatter fixes use the schema from `~/Vaults/AGENTS.md`.
 
 Scan for and fix:
 - Missing `type`, `tags`, or `created` fields.
 - Missing or incorrect `parent:` field — must point to the folder parent or a same-folder collection. Root files (`MEMORY.md`, `IDENTITY.md`, `SOUL.md`, `USER.md`) are exempt from `parent:`.
-- Missing `summary` field — read the note body via `obsidian vault=Memory read path="..."` and write a 15-25 word plain-text summary into frontmatter. No wikilinks, no markdown in the summary.
+- Missing `summary` field — read the note body directly and write a 15-25 word plain-text summary into frontmatter. No wikilinks, no markdown in the summary.
 - Missing `consolidated` field on session notes.
 
 ### Phase 4b: Knowledge vault 08_people/ frontmatter validation
@@ -117,7 +117,7 @@ For files with missing fields, read and fix. Person notes need: `role`, `departm
 
 ```bash
 # Get active project names as tags
-obsidian vault=Knowledge files folder=03_active 2>/dev/null
+rg --files ~/Vaults/Knowledge/03_active/ 2>/dev/null
 ```
 
 Derive project tags from filenames. Then:
@@ -131,7 +131,7 @@ For each match:
 1. Read the backlog note and the matching project note.
 2. Append task line(s) to the project's `## Tasks` section.
 3. Preserve URL/summary/context as a brief entry in the project note.
-4. Delete the backlog note: `obsidian vault=Knowledge delete path="02_backlog/{file}"`
+4. Delete the backlog note with `trash ~/Vaults/Knowledge/02_backlog/{file}`.
 5. Log in the grooming report.
 
 ### Phase 6: Index/parent note validation
@@ -195,7 +195,7 @@ Write a separate report to each vault.
 
 **Knowledge vault report:**
 ```
-obsidian vault=Knowledge create path="00_system/grooming-reports/{YYYY-MM-DD}.md" content="---\ntype: report\nparent: \"[[reports]]\"\ncreated: YYYY-MM-DD\nsummary: \"Grooming run: N issues found, M fixed.\"\ntags: []\n---\n\n# Grooming Report — {YYYY-MM-DD}\n\n## Summary\n\n- {N} issues found, {M} fixed, {P} backlog notes promoted, {C} collections created\n\n## Fixed\n\n- ...\n\n## Promoted to Projects\n\n- ...\n\n## Needs Review\n\n- ..."
+Write `~/Vaults/Knowledge/00_system/grooming-reports/{YYYY-MM-DD}.md` directly with the required report frontmatter and sections.
 ```
 
 **Memory vault report** (write via filesystem for backtick safety):
@@ -234,7 +234,7 @@ Print all actions taken to stdout (captured by launchd).
 ## Rules
 
 - **Performance first.** Use `rg` and targeted reads. Never read all files. The link graph from Phase 1 drives everything.
-- Always include `vault=Knowledge` or `vault=Memory` in every `obsidian` command.
+- Do not launch the Obsidian app CLI for routine vault operations.
 - Knowledge vault: ONLY delete `02_backlog/` notes that were successfully promoted. Never delete anything else.
 - Memory vault: ONLY delete truly empty/artifact files (zero content below frontmatter). Everything else is reported.
 - When fixing broken wikilinks, log before and after in the grooming report.

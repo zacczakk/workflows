@@ -10,8 +10,7 @@ Read `~/Vaults/AGENTS.md` for current vault conventions before starting.
 
 The Knowledge vault is at `~/Vaults/Knowledge/`.
 
-- **Primary:** use `obsidian` CLI (`obsidian vault=Knowledge files`, `read`, `create`, `delete`, `search`).
-- **Fallback:** if `obsidian` CLI is unavailable or a command fails, use the filesystem directly:
+- **Primary:** use filesystem tools directly:
   - List: `Read` tool on `~/Vaults/Knowledge/01_inbox/`
   - Read: `Read` tool on `~/Vaults/Knowledge/{path}`
   - Create: `Write` tool to `~/Vaults/Knowledge/{path}`
@@ -22,13 +21,13 @@ The Knowledge vault is at `~/Vaults/Knowledge/`.
 
 ## Steps
 
-1. **List inbox:** `obsidian vault=Knowledge files folder=01_inbox`
+1. **List inbox:** read `~/Vaults/Knowledge/01_inbox/` directly.
    - If empty, say "Inbox empty — nothing to triage." and stop.
    - If the command fails, fall back to reading the directory directly.
 
 2. **Process each file autonomously.** For each:
 
-   a. `obsidian vault=Knowledge read path="01_inbox/{file}"` — understand what it is.
+   a. Read `~/Vaults/Knowledge/01_inbox/{file}` directly.
 
    b. **If it contains multiple distinct topics, URLs, or unrelated items:**
       - Split into separate items and process each independently through steps c–k below.
@@ -46,7 +45,7 @@ The Knowledge vault is at `~/Vaults/Knowledge/`.
         - Fetch the URL (WebFetch or Tavily).
         - Extract: title, author if available, key content.
       - Write a 2-4 sentence summary capturing the core insight.
-      - **Check for duplicates:** `obsidian vault=Knowledge search query="{url}"` — scan results for any `02_backlog/` note that already contains this URL.
+      - **Check for duplicates:** use `rg -F "{url}" ~/Vaults/Knowledge/02_backlog/`.
         - **If a match exists:** read the existing note, merge any new information (better summary, additional context), append if useful. Do NOT create a new note. Skip to step k.
         - **If no match:** proceed to steps d–j as normal.
 
@@ -86,7 +85,7 @@ The Knowledge vault is at `~/Vaults/Knowledge/`.
 
    i. **Project-specific items — merge into active project note instead of backlog:**
       - If the item is tagged with a project tag (match against `03_active/` filenames) or explicitly links to / mentions an active project:
-        1. Find the matching project note: `obsidian vault=Knowledge files folder=03_active` — match by project name.
+         1. List `~/Vaults/Knowledge/03_active/` and match by project name.
         2. Read the project note.
         3. Append the task line(s) to the project's `## Tasks` section.
          4. If the item has a URL or summary worth preserving, add a brief note under the relevant section.
@@ -95,11 +94,9 @@ The Knowledge vault is at `~/Vaults/Knowledge/`.
       - If no matching `03_active/` project note exists, fall through to step j (create in backlog as normal).
 
    j. **Create enriched note in backlog** (non-project items only):
-      ```
-       obsidian vault=Knowledge create path="02_backlog/{kebab-name}.md" content="---\ntype: backlog\nparent: \"[[backlog]]\"\ncreated: YYYY-MM-DD\nsummary: \"{15-25 word plain-text summary}\"\ntags: []\nsource: {url if present}\n---\n\n# {Title}\n\n{summary or cleaned content}\n\n{original URL if present}\n\n## Tweet Context\n\n{only if source is a tweet — author, full text, engagement, quoted tweets}\n\n## Research\n\n{briefing — what it is, benefits, alternatives, fit for this system, caveats}\n\n## References\n\n- {source URLs from research}\n\n## Tasks\n\n- [ ] {action item} #{tag}"
-      ```
+       Write `~/Vaults/Knowledge/02_backlog/{kebab-name}.md` directly with the required frontmatter, summary, research, references, and task sections.
 
-   k. **Delete the original:** `obsidian vault=Knowledge delete path="01_inbox/{file}"`
+   k. **Delete the original:** use `trash ~/Vaults/Knowledge/01_inbox/{file}`.
 
 3. **Print summary** when done:
    ```
@@ -116,8 +113,7 @@ The Knowledge vault is at `~/Vaults/Knowledge/`.
 - **Inline instructions from Phil:** Notes may contain direct instructions addressed to "Fred" or the processing agent (e.g., "Fred, file this under X" or "research this deeply" or "skip research, just save"). Respect these instructions — they override default processing behavior for that item.
 - **Frontmatter required** on all backlog notes. Use Knowledge vault schema: `type: backlog`, `parent: "[[backlog]]"`, `created: YYYY-MM-DD`, `summary: "..."`, `tags: []`, `source: {url}` (if URL-sourced).
 - Every backlog note MUST have at least one `- [ ]` task line.
-- Always include `vault=Knowledge` in every `obsidian` command.
-- Use `obsidian vault=Knowledge` CLI for all vault operations (create, read, delete, files).
+- Do not launch the Obsidian app CLI for routine vault operations.
 - Use WebFetch or Tavily to fetch URLs — never skip URL enrichment.
 - Use Tavily search for deep topic research on every non-personal item. Skip research only for personal/trivial items (or if Phil's inline instructions say otherwise).
 - Kebab-case filenames derived from content, not original filename.

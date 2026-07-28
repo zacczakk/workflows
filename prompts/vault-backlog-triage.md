@@ -1,6 +1,6 @@
 # Backlog Triage
 
-Evaluate every item in `02_backlog/`, classify by priority, and rewrite `backlog.md` as a prioritized working document.
+Evaluate changed backlog items daily and every backlog item on Sunday, then rewrite `backlog.md` as a prioritized working document.
 
 ## Context
 
@@ -8,76 +8,39 @@ Read `~/Vaults/AGENTS.md` for current vault conventions before starting.
 
 ## Performance Budget
 
-This workflow has a 30-minute timeout. Use parallel subagents aggressively. Never read files sequentially when they can be batched.
+Target 30 minutes. Gather indexes mechanically and delegate only selected backlog items, in batches of at most 8.
 
 ## Tool Access
 
 The Knowledge vault is at `~/Vaults/Knowledge/`.
 
-- **Primary:** use `obsidian` CLI (`obsidian vault=Knowledge files`, `read`, `create`, `delete`, `search`).
-- **Fallback:** if `obsidian` CLI is unavailable or a command fails, use the filesystem directly:
-  - List: `Read` tool on `~/Vaults/Knowledge/02_backlog/`
-  - Read: `Read` tool on `~/Vaults/Knowledge/{path}`
-  - Write: `Write` tool to `~/Vaults/Knowledge/{path}`
-  - Search: `Grep` tool on `~/Vaults/Knowledge/`
-- **Memory vault:** use `rg` for summary-first scans, `obsidian vault=Memory` for reads.
+- Use filesystem tools for listing, reading, and writing vault files. Use `rg` for exact search.
+- Use `qmd query "{topic}" -c memory` for semantic Memory lookup after a summary-first `rg` scan.
+- Do not launch the Obsidian app CLI for routine vault operations.
 - **URL checks:** use WebFetch or Tavily to verify freshness of URLs in backlog items.
 
 ## Steps
 
-### Phase 1: Context gathering (4 parallel subagents)
+### Phase 1: Select mode and items
 
-Launch all four simultaneously. Each subagent prompt must be self-contained.
+Determine the current local weekday.
 
-**Subagent A — Backlog + Memory inventory:**
-1. Read `backlog.md`: `obsidian vault=Knowledge read path="02_backlog/backlog.md"`
-2. Read every backlog note in `02_backlog/` (list via `obsidian vault=Knowledge files folder=02_backlog`, then read each)
-3. List active projects: `obsidian vault=Knowledge files folder=03_active`
-4. Read Memory vault indexes (summary-first):
-   ```bash
-   rg '^summary:' ~/Vaults/Memory/patterns/ --glob '*.md' --no-heading
-   rg '^summary:' ~/Vaults/Memory/tools/ --glob '*.md' --no-heading
-   rg '^summary:' ~/Vaults/Memory/projects/ --glob '*.md' --no-heading
-   ```
-5. Return: full backlog item list with note contents, active project names, current tools/patterns/projects inventory from Memory vault.
+- **Sunday full mode:** select every `02_backlog/*.md` leaf except `backlog.md`.
+- **Daily delta mode:** select only leaf notes whose filesystem modification time is newer than `02_backlog/backlog.md`.
+- If `backlog.md` is missing, use full mode.
+- If daily mode selects no notes, print "No changed backlog items to triage." and stop without rewriting `backlog.md`.
 
-**Subagent B1 — Docs context:**
-1. Read `06_docs/docs.md` index: `obsidian vault=Knowledge read path="06_docs/docs.md"`
-2. Read all sub-indexes listed in `docs.md`
-3. Return: what's documented, topic coverage, which tools/setups have docs.
+Read the existing `backlog.md`, selected notes, and these lightweight indexes directly: `03_active/projects.md`, `06_docs/docs.md`, and `07_knowledge/knowledge.md`. Gather only matching Memory summaries for each selected topic.
 
-**Subagent B2 — Knowledge + personal notes context:**
-1. Read `07_knowledge/knowledge.md` index: `obsidian vault=Knowledge read path="07_knowledge/knowledge.md"`
-2. Read all sub-indexes listed in `knowledge.md`
-3. List personal notes: `obsidian vault=Knowledge files folder=05_notes`
-4. Return: what's in knowledge base, topic areas covered, personal notes inventory.
-
-**Subagent C — Freshness check:**
-1. Receive the list of backlog items with their URLs (passed from a quick pre-scan).
-2. For each item with a URL: fetch the URL. Check:
-   - Is the repo/project still active? (last commit, archived status)
-   - Any major updates since the item was captured?
-   - Is the URL still valid (404, redirect)?
-3. For items without URLs: skip.
-4. Return: per-item freshness status — `active`, `stale`, `archived`, `dead-link`, `major-update`, or `no-url`.
-
-**Pre-scan for Subagent C:** Before launching subagents, do a quick `rg` to extract URLs from backlog notes:
-```bash
-rg 'https?://[^\s)]+' ~/Vaults/Knowledge/02_backlog/ --no-heading --no-filename | sort -u > /tmp/backlog_urls.txt
-rg -l 'https?://' ~/Vaults/Knowledge/02_backlog/ --no-heading > /tmp/backlog_with_urls.txt
-```
-Pass this to Subagent C's prompt.
+For selected items with URLs, fetch each URL and classify freshness as `active`, `stale`, `archived`, `dead-link`, `major-update`, or `no-url`.
 
 ### Phase 2: Evaluate (parallel subagents, batched)
 
-Split backlog items into batches of ~8 items. Launch one subagent per batch. Each subagent receives:
-- Its batch of items (full note contents from Phase 1A)
-- Active project list (from Phase 1A)
-- Memory vault tools/patterns inventory (from Phase 1A)
-- Docs coverage (from Phase 1B1)
-- Knowledge coverage (from Phase 1B2)
-- Personal notes list (from Phase 1B2)
-- Freshness data for its items (from Phase 1C)
+Split selected items into batches of at most 8. Delegate only when more than 8 items are selected. Each subagent receives:
+- Its batch of selected notes
+- Active project, docs, and knowledge index context
+- Matching Memory summaries
+- Freshness data for its items
 
 Each subagent evaluates per item:
 
@@ -110,7 +73,11 @@ Return: per-item evaluation with all fields above.
 
 ### Phase 3: Rewrite `backlog.md` (main agent)
 
-Synthesize all subagent results. Overwrite `02_backlog/backlog.md` with the prioritized structure:
+Synthesize all results before writing. In daily mode, preserve every unchanged item's existing classification and text, then insert or replace only selected items. In Sunday mode, rebuild all classifications.
+
+Do not rewrite `backlog.md` unless every selected item has a completed evaluation. A failed run must leave the previous success marker intact so the next daily run retries the same changed notes.
+
+Overwrite `02_backlog/backlog.md` with the prioritized structure:
 
 ```markdown
 # Backlog Index
@@ -140,7 +107,7 @@ Last triaged: {YYYY-MM-DD}
 - ...
 ```
 
-Write via obsidian CLI or filesystem. `backlog.md` uses `parent: "[[Home]]"` in frontmatter.
+Write via filesystem. `backlog.md` uses `parent: "[[Home]]"` in frontmatter.
 
 ### Phase 4: Log
 
@@ -157,7 +124,7 @@ Changes from last triage: {items reclassified, new items evaluated, items remove
 - Fully autonomous — no user interaction. This is a nightly workflow.
 - Never delete backlog items. Classification only. Deletion is Phil's decision via `/obs-triage`.
 - Never create new notes. Only rewrite `backlog.md`.
-- Always include `vault=Knowledge` in every `obsidian` command.
+- Do not use the Obsidian app CLI for routine vault work.
 - Preserve all `[[wikilinks]]` in `backlog.md` — every listed item must be a wikilink to its note.
 - `backlog.md` uses `parent: "[[Home]]"` in frontmatter. No other outgoing links from `backlog.md` except child wikilinks to backlog items.
 - Items that arrived from inbox processing earlier in the nightly pipeline: evaluate them with the same criteria. They may lack research — fetch their URLs and enrich the evaluation.

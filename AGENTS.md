@@ -6,4 +6,4 @@ Scheduled vault maintenance via launchd. See `README.md` for full docs.
 - Config: `workflows.toml`
 - Prompts: `prompts/` (self-contained, no interactive context)
 - Scripts: `scripts/` (Bun)
-- Build: `bun build src/wf.ts --compile --outfile bin/wf`
+- Build: `WF_CODESIGN_IDENTITY="..." bun run scripts/build.ts` (compiles and signs `bin/wf` with a stable macOS identity)

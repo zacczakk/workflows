@@ -141,5 +141,5 @@ If any check fails, fix it before exiting. **An exit without writing the report 
 - **Web search for external claims.** If a note claims something about an external tool/API/library, search the web. Prefer 2025-2026 sources.
 - **Conservative scoring.** When in doubt, pick the less severe score. Catch real problems, not pedantic.
 - **Skip if blocked.** Can't verify a claim? Score "unverifiable" and move on. Don't hang.
-- Always include `vault=Memory` in every `obsidian` command.
+- Do not launch the Obsidian app CLI for routine vault operations.
 - If `qmd` is on PATH, use `qmd query` for finding related context.

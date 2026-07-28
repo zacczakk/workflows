@@ -20,7 +20,7 @@ This runs nightly after session processing. Input = unconsolidated session notes
 
 ### 1. Gather unconsolidated session notes
 
-`obsidian vault=Memory files folder=sessions`
+List `~/Vaults/Memory/sessions/` with filesystem tools.
 
 Read every session note. Partition into two sets:
 
@@ -40,7 +40,7 @@ b. Extract key themes, tools, patterns, and project references mentioned.
 
 c. Search for related existing notes:
    - `qmd query "{key themes}" --json -c memory` for semantic matching (preferred).
-   - `obsidian vault=Memory search query="{keywords}"` as fallback.
+   - `rg '^summary:.*{keywords}' ~/Vaults/Memory/ --glob '*.md' -i` as exact fallback.
 
 d. For each theme, check:
    - Does a pattern note already capture this? → Note it as "already covered."
@@ -90,7 +90,7 @@ d. If merging into an existing note: preserve existing frontmatter, append or up
 
 Read frontmatter (especially `summary` and `updated` fields) for notes in `projects/`, `patterns/`, and `tools/`. Only full-read notes where drift is suspected. Use a summary-first scan:
 
-For each note, read frontmatter via `obsidian vault=Memory read path="..."` (first 10-15 lines are sufficient). Or use `rg` to check specific fields:
+Read frontmatter directly (first 10-15 lines are sufficient), or use `rg` to check specific fields:
 
 ```bash
 rg '^(type|summary|updated|status):' ~/Vaults/Memory/projects/ ~/Vaults/Memory/patterns/ ~/Vaults/Memory/tools/ --glob '*.md' --no-heading 2>/dev/null
@@ -126,7 +126,7 @@ Delete session notes that have served their purpose:
 - `consolidated: true` AND `created` date is older than 2 days.
 - `consolidated: true` AND was just marked consolidated in step 5 of this run AND `created` date is older than 5 days (overdue notes — no grace period needed).
 
-For each deletion: `obsidian vault=Memory delete path="sessions/{file}"` and log it in the consolidation report.
+For each deletion: use `trash ~/Vaults/Memory/sessions/{file}` and log it in the consolidation report.
 
 Do NOT delete any session note that is:
 - `consolidated: true` but less than 2 days old (grace period for verification).
@@ -188,7 +188,7 @@ Print all actions taken to stdout (captured by launchd to `logs/consolidation.ou
 
 ## Rules
 
-- Always include `vault=Memory` in every `obsidian` command.
+- Do not launch the Obsidian app CLI for routine vault operations.
 - Memory vault file writes go through the filesystem (`~/Vaults/Memory/...`), not the obsidian CLI — backtick safety.
 - **Merge over create.** Always check for existing notes before creating new patterns. Extend existing notes rather than creating near-duplicates.
 - **≥2 independent contexts required.** Don't create a pattern note from a single session. The insight must appear across different projects, days, or problem domains to qualify as a cross-cutting pattern.

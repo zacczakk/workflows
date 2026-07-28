@@ -4,7 +4,7 @@ Distill the Memory vault and Knowledge vault docs into two files: `MEMORY.md` (s
 
 ## Purpose
 
-An agent reads `MEMORY.md` and `USER.md` first, then searches deeper via QMD or the obsidian CLI. The goal is: after reading these two files, the agent immediately knows who the user is, what they're working on, how things are structured, and where to find details.
+An agent reads `MEMORY.md` and `USER.md` first, then searches deeper via QMD or filesystem search. The goal is: after reading these two files, the agent immediately knows who the user is, what they're working on, how things are structured, and where to find details.
 
 **Critical: `MEMORY.md` is injected into every agent session at startup.** Every token in this file costs context window budget on every single interaction. Be ruthlessly concise. If a line doesn't change how an agent behaves, cut it.
 
@@ -16,7 +16,7 @@ Read `~/Vaults/AGENTS.md` for current vault conventions before starting.
 
 ### 1. List all Memory vault notes
 
-`obsidian vault=Memory files` — get full file list.
+List `~/Vaults/Memory/` recursively with filesystem tools.
 
 **Skip these files:**
 - `MEMORY.md` itself (self-referential)
@@ -33,7 +33,7 @@ Read `~/Vaults/AGENTS.md` for current vault conventions before starting.
    ```bash
    rg '^summary:' ~/Vaults/Memory/ --glob '*.md' --no-heading 2>/dev/null
    ```
-   Then read frontmatter of each note via `obsidian vault=Memory read path="..."` (first 10-15 lines suffice for categorization).
+   Then read frontmatter directly (first 10-15 lines suffice for categorization).
 
 2. For notes with a `summary:` field in frontmatter — use it directly. No full read needed unless the summary is unclear or you need to update the MEMORY.md entry significantly.
 
@@ -78,7 +78,7 @@ Write both files directly to the filesystem:
 - `~/Vaults/Memory/MEMORY.md`
 - `~/Vaults/Memory/USER.md`
 
-Do NOT use the obsidian CLI for these writes (backtick safety).
+Write directly to the filesystem.
 
 ## MEMORY.md Format
 

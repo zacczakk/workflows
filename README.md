@@ -7,6 +7,7 @@ Scheduled AI agent workflows for Obsidian vault maintenance. macOS-native, launc
 ## How it works
 
 ```
+log maintenance      →  launchd fires at 00:55
 pmset wakeorpoweron  →  launchd fires at 01:00
                          └── wf run nightly
                               ├── disablesleep 1
@@ -40,7 +41,7 @@ Sleep is disabled for the duration of the batch and re-enabled afterward (via `f
 | `vault-inbox-processing` | agent | 1h | daily | Triage raw inbox captures into enriched backlog notes |
 | `vault-session-processing` | agent | 30m | daily | Distill session notes into patterns and project knowledge |
 | `vault-grooming` | agent | 90m | daily | Fix broken links, connect orphans, clean frontmatter |
-| `vault-backlog-triage` | agent | 30m | daily | Evaluate and prioritize backlog items |
+| `vault-backlog-triage` | agent | 1h | daily delta + Sunday full | Evaluate and prioritize backlog items |
 | `vault-knowledge-distillation` | agent | 90m | daily | Condense Memory vault into `MEMORY.md` for agent context |
 | `vault-consolidation` | agent | 1h | daily | Synthesize cross-cutting insights from recent session notes |
 | `vault-retrieval-practice` | agent | 30m | weekly | Spot-check Memory vault notes for accuracy |
@@ -71,7 +72,6 @@ wf uninstall         remove from launchd, clear wake schedule
 - [Bun](https://bun.sh) — runtime + compiler
 - [nvm](https://github.com/nvm-sh/nvm) with Node >= 22 — required for plist PATH resolution and qmd
 - [OpenCode](https://opencode.ai) — headless agent execution (`opencode run`)
-- [Obsidian CLI](https://github.com/zacczakk/obsidian) — vault CRUD (used by agent prompts)
 - [qmd](https://github.com/tobi/qmd) — hybrid markdown search + embeddings (required for `vault-embeddings`, optional for agent workflows)
 - Two Obsidian vaults at `~/Vaults/Knowledge/` and `~/Vaults/Memory/`
 
@@ -80,7 +80,7 @@ wf uninstall         remove from launchd, clear wake schedule
 ```bash
 git clone https://github.com/zacczakk/workflows.git
 cd workflows
-bun build src/wf.ts --compile --outfile bin/wf
+WF_CODESIGN_IDENTITY="Developer ID Application: Example Corp (TEAMID)" bun run scripts/build.ts
 export PATH="$PWD/bin:$PATH"
 ```
 
@@ -125,6 +125,8 @@ This registers two launchd agents per enabled schedule:
 - **`wf-<schedule>-watchdog`** — runs `pmset disablesleep 0` at the watchdog time as a safety net
 
 It also sets a `pmset repeat wakeorpoweron` so the Mac wakes from sleep to run workflows. This step prompts for sudo (one time).
+
+The build script signs `bin/wf` with identifier `com.zacczakk.workflows.wf` so macOS filesystem permissions survive rebuilds. Set `WF_CODESIGN_IDENTITY` to an installed code-signing identity.
 
 ### 5. Verify
 

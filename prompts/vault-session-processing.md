@@ -29,7 +29,7 @@ grep -v 'sessions\.md$' /tmp/sessions_false.txt | sort -u > /tmp/sessions_to_pro
 
 For each file in `/tmp/sessions_to_process.txt`:
 
-a. Read the full note: `obsidian vault=Memory read path="sessions/{file}"`
+a. Read the full note directly from `~/Vaults/Memory/sessions/{file}`.
 
 b. **Classify extractable knowledge.** For each distinct insight, decision, or discovery in the note, determine its type:
 
@@ -41,7 +41,7 @@ b. **Classify extractable knowledge.** For each distinct insight, decision, or d
 | Vault structure, agent config, system knowledge | root (`~/Vaults/Memory/`) | `reference` |
 
 c. **Check for existing notes.** Before creating a new note, search for existing ones that cover the same topic:
-   - `obsidian vault=Memory search query="{topic keywords}"`
+   - `rg '^summary:.*{topic keywords}' ~/Vaults/Memory/ --glob '*.md' -i`
    - If `qmd` is on PATH, prefer `qmd query "{topic}" --json -c memory` for semantic matching.
    - **If a match exists:** read the existing note and merge — append new information, update stale content. Do NOT create a duplicate.
    - **If no match:** create a new note (step d).
@@ -88,7 +88,7 @@ Processed {N} session notes:
 - Every extracted note MUST have valid frontmatter (`type`, `summary`, `tags`, `created`, `parent`).
 - **Tree-graph linking.** Set `parent:` to the note's folder parent or same-folder collection. Folder parents by folder: `tools/` → `"[[tools]]"`, `patterns/` → `"[[patterns]]"`, `projects/` → `"[[projects]]"`, `sessions/` → `"[[sessions]]"`. If a collection exists in the same folder for this topic, use the collection instead. Optional `related:` for up to 2 lateral dependencies only (not parent). Don't pad with tangential connections.
 - **No body `[[wikilinks]]` to other leaf notes.** Use plain text for references to other Memory vault notes within body content. The only allowed body wikilinks are from parent/collection notes listing their children.
-- Always include `vault=Memory` in every `obsidian` command.
+- Do not launch the Obsidian app CLI for routine vault operations.
 - Write notes via filesystem (`~/Vaults/Memory/...`), not `obsidian create` — backtick safety.
 - If a session note has zero extractable knowledge (purely routine, everything already captured elsewhere), leave it in place for consolidation and note "no extractable knowledge" in the summary.
 - Do NOT modify notes outside the Memory vault. This workflow is write-only to Memory.
