@@ -11,6 +11,8 @@ export function descendants(pid: number): number[] {
 
 export function signalProcesses(pids: number[], signal: NodeJS.Signals): void {
   for (const pid of pids) {
-    try { process.kill(pid, signal); } catch {}
+    try { process.kill(pid, signal); } catch (error) {
+      if (typeof error !== "object" || error === null || !("code" in error) || error.code !== "ESRCH") console.error(`Could not signal owned process ${pid}: ${String(error)}`);
+    }
   }
 }

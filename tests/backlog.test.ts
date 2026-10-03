@@ -16,6 +16,10 @@ test("triage selection ignores index edits, retries incomplete work, and skips s
   const first = prepareBacklog(state, "2026-10-02", vault);
   expect(first.files.map((file) => file.path.split("/").pop())).toEqual(["leaf.md"]);
   expect(prepareBacklog(state, "2026-10-02", vault).files).toHaveLength(1);
+  expect(() => commitBacklog(state, first)).toThrow("completion");
+  writeFileSync(join(state, "backlog-completion.json"), JSON.stringify({ date: first.date, results: [] }));
+  expect(() => commitBacklog(state, first)).toThrow("coverage");
+  writeFileSync(join(state, "backlog-completion.json"), JSON.stringify({ date: first.date, results: [{ path: first.files[0].path, classification: "holding", reason: "Useful idea; existing project work has higher priority." }] }));
   commitBacklog(state, first);
   utimesSync(join(folder, "backlog.md"), new Date(), new Date());
   expect(prepareBacklog(state, "2026-10-03", vault).files).toHaveLength(0);

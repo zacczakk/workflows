@@ -7,6 +7,7 @@ import { install, uninstall, loadedLabels } from "./install";
 import { scheduleRunnerLabel, scheduleWatchdogLabel, serviceLabel } from "./plist";
 import { printWakeStatus } from "./wake";
 import { run } from "./run";
+import { notifyFailure } from "./notify";
 
 const bundled = import.meta.filename.startsWith("/$bunfs");
 const root = bundled ? resolve(dirname(process.execPath), "..") : resolve(import.meta.dir, "..");
@@ -52,6 +53,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((error: unknown) => {
-  console.error(error instanceof Error ? error.message : String(error));
+  notifyFailure(process.argv[3] ?? process.argv[2] ?? "startup", error instanceof Error ? error.message : String(error));
   process.exit(1);
 });

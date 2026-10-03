@@ -25,7 +25,7 @@ The Knowledge vault is at `~/Vaults/Knowledge/`.
 
 Read `$WF_STATE_DIR/backlog-selection.json`. The runner has already selected mode and exact leaf paths using an independent per-item checkpoint. Evaluate ONLY that list. Never use `backlog.md` modification time. Never evaluate `type: index`, `collection`, `query`, `report`, or `sync-report` notes as backlog items.
 
-- Empty selection: still write today's report with "No changed backlog items to triage" and preserve the previous full classification report.
+- Empty selection: write today's report with "No changed backlog items to triage" and refresh `latest.md` while preserving its previous full classifications.
 - The runner checkpoints selected items only after this agent succeeds and today's report exists.
 
 Read the existing `backlog.md`, selected notes, and these lightweight indexes directly: `03_active/projects.md`, `06_docs/docs.md`, and `07_knowledge/knowledge.md`. Gather only matching Memory summaries for each selected topic.
@@ -108,6 +108,14 @@ Last triaged: {YYYY-MM-DD}
 Create/maintain `00_system/backlog-triage-reports/backlog-triage-reports.md` as an index (`parent: "[[system]]"`). List latest and dated reports. Add one navigation link to this report index in `02_backlog/backlog.md`, preserving every existing structural listing. Never flatten backlog navigation or remove/reclassify its sub-indexes. This reporting index is exempt from the ten-child cap because its entries are dated reports.
 
 ### Phase 4: Log
+
+Write `$WF_STATE_DIR/backlog-completion.json` (use the exact state directory supplied by the runner). This is mandatory even for empty selection. Format:
+
+```json
+{"date":"{run date}","results":[{"path":"{exact selected absolute path}","classification":"holding","reason":"Evidence-backed explanation of this evaluation"}]}
+```
+
+Exactly one result per selected path; no extra or duplicate paths. Classification must be `quick-win`, `high-impact`, `stale`, or `holding`; reason must summarize actual evidence. Empty selection uses `results: []`. Write only after both dated and latest reports are refreshed. The runner validates coverage before committing its checkpoint.
 
 Print summary to stdout:
 

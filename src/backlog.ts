@@ -36,6 +36,17 @@ export function prepareBacklog(directory: string, date: string, vault = resolve(
 }
 
 export function commitBacklog(directory: string, selection: BacklogSelection): void {
+  const completion = resolve(directory, "backlog-completion.json");
+  if (!existsSync(completion)) throw new Error("Missing backlog completion manifest");
+  const value: unknown = JSON.parse(readFileSync(completion, "utf8"));
+  if (typeof value !== "object" || value === null || !("date" in value) || value.date !== selection.date || !("results" in value) || !Array.isArray(value.results)) throw new Error("Invalid backlog completion manifest");
+  const selected = new Set(selection.files.map((file) => file.path));
+  const completed = new Set<string>();
+  for (const item of value.results) {
+    if (typeof item !== "object" || item === null || !("path" in item) || typeof item.path !== "string" || !("classification" in item) || typeof item.classification !== "string" || !["quick-win", "high-impact", "stale", "holding"].includes(item.classification) || !("reason" in item) || typeof item.reason !== "string" || item.reason.trim().length < 10 || !selected.has(item.path) || completed.has(item.path)) throw new Error("Invalid backlog completion coverage");
+    completed.add(item.path);
+  }
+  if (completed.size !== selected.size) throw new Error("Incomplete backlog completion coverage");
   const path = resolve(directory, "backlog-triage.json");
   const state = checkpoint(path);
   for (const file of selection.files) state.files[file.path.split("/").pop() ?? file.path] = file.modified;

@@ -59,3 +59,5 @@
 - QMD update/embed timeout now four minutes; incomplete index leaves consolidation blocked. Old scheduled export stopped for safe reinstall.
 - Real GPT-6.1 Sol medium session smoke passes via exact V2 outcome API; CLI tests cover dependencies, retained last success, output validation, timezone, backlog independent checkpoint and index exclusion.
 - TypeScript compiler present in another repo, Bun type definitions unavailable; compiled Bun build and runtime tests provide current verification.
+- Independent review identified false archive-source attestation and incomplete backlog checkpoint proof. Fixed: exporter records actually scanned sources; missing-source regression passes; backlog requires a fresh exact-coverage manifest plus both latest/dated reports. Startup failures and sleep-restore errors notify and fail the run.
+- User chose full vector rebuild. Claude/Codex full-ID archive regeneration completed (423/67); long checkpointed embedding recovery runs before all-source health and live nightly proof.

@@ -6,6 +6,7 @@ import { acquireLock, formatDuration, lastSuccessDate, readState, writeState } f
 import { createSession, interruptSession, sessionOutcome } from "./opencode";
 import { prepareBacklog, commitBacklog } from "./backlog";
 import { descendants, signalProcesses } from "./process";
+import { notifyFailure } from "./notify";
 
 export function localDate(): string {
   const now = new Date();
@@ -25,13 +26,6 @@ function archiveHealthy(): boolean {
   } catch {
     return false;
   }
-}
-
-function notify(name: string, text: string): void {
-  console.error(`${name}: ${text}`);
-  if (process.env.WF_NOTIFICATIONS === "0") return;
-  const literal = (value: string) => JSON.stringify(value).replaceAll("\\n", " ");
-  Bun.spawnSync(["/usr/bin/osascript", "-e", `display notification ${literal(text.slice(0, 180))} with title ${literal(`Workflow failed: ${name}`)}`], { stdout: "ignore", stderr: "ignore" });
 }
 
 async function runWorkflow(cfg: Config, root: string, name: string, wf: Workflow, date: string): Promise<number> {
@@ -94,7 +88,11 @@ async function runWorkflow(cfg: Config, root: string, name: string, wf: Workflow
       for (const path of outputs) {
         if (!existsSync(path) || statSync(path).mtimeMs < started || statSync(path).size === 0) throw new Error(`Required output missing or stale: ${path}`);
       }
-      if (selection) commitBacklog(directory, selection);
+      if (selection) {
+        const manifest = resolve(directory, "backlog-completion.json");
+        if (!existsSync(manifest) || statSync(manifest).mtimeMs < started) throw new Error("Backlog completion manifest missing or stale");
+        commitBacklog(directory, selection);
+      }
     }
   } catch (error) {
     code = 1;
@@ -108,7 +106,7 @@ async function runWorkflow(cfg: Config, root: string, name: string, wf: Workflow
   }
   const duration = formatDuration(Date.now() - started);
   if (code === 0) console.log(`ok ${name} completed in ${duration}`);
-  else notify(name, `Failed after ${duration}; inspect wf logs`);
+  else notifyFailure(name, `Failed after ${duration}; inspect wf logs`);
   return code;
 }
 
@@ -119,6 +117,7 @@ export async function run(cfg: Config, root: string, name: string): Promise<numb
   const unlock = acquireLock(directory, `schedule-${name}`);
   if (!unlock) throw new Error(`${name} is already running`);
   let sleepingDisabled = false;
+  let restoreFailed = false;
   if (schedule?.prevent_sleep) {
     const result = Bun.spawnSync(["sudo", "-n", "/usr/bin/pmset", "-a", "disablesleep", "1"], { stdout: "ignore", stderr: "pipe" });
     sleepingDisabled = result.exitCode === 0;
@@ -126,7 +125,11 @@ export async function run(cfg: Config, root: string, name: string): Promise<numb
   }
   const cleanup = () => {
     if (sleepingDisabled) {
-      Bun.spawnSync(["sudo", "-n", "/usr/bin/pmset", "-a", "disablesleep", "0"], { stdout: "ignore", stderr: "ignore" });
+      const result = Bun.spawnSync(["sudo", "-n", "/usr/bin/pmset", "-a", "disablesleep", "0"], { stdout: "ignore", stderr: "pipe" });
+      if (result.exitCode !== 0) {
+        restoreFailed = true;
+        notifyFailure(name, "Failed to restore sleep; run sudo pmset -a disablesleep 0");
+      }
       sleepingDisabled = false;
     }
     unlock();
@@ -164,5 +167,5 @@ export async function run(cfg: Config, root: string, name: string): Promise<numb
     cleanup();
   }
   console.log(`\n${passed} passed, ${failed} failed, ${skipped} skipped in ${formatDuration(Date.now() - started)}`);
-  return stopped ? 143 : failed > 0 ? 1 : 0;
+  return stopped ? 143 : failed > 0 || restoreFailed ? 1 : 0;
 }

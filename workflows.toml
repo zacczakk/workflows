@@ -81,7 +81,7 @@ description = "Sweep both vaults for broken links, orphans, stale notes"
 timeout = 5400
 
 [workflows.vault-backlog-triage]
-outputs = ["~/Vaults/Knowledge/00_system/backlog-triage-reports/{date}.md"]
+outputs = ["~/Vaults/Knowledge/00_system/backlog-triage-reports/{date}.md", "~/Vaults/Knowledge/00_system/backlog-triage-reports/latest.md"]
 type = "agent"
 prompt = "prompts/vault-backlog-triage.md"
 model = "github-copilot/gpt-6.1-sol#medium"
