@@ -13,7 +13,7 @@ Session processing extracts individual facts. Grooming fixes structure. Distilla
 This runs nightly after session processing. Input = unconsolidated session notes + recently modified vault notes. Output = new pattern notes, a consolidation report, and cleaned-up sessions.
 
 **TTL Policy:** Session notes in the Memory vault are a hot cache — the Sessions vault (persistent Claude/OpenCode session lookup) is the long-term archive. Memory vault sessions should be consolidated quickly and purged aggressively:
-- **Archive safety gate:** Cleanup is allowed ONLY when the runner states "Archive cleanup authorized: true" AND `~/.local/share/sessions/archive-health.json` confirms all three sources, `indexed: true`, zero failures, and success within 24 hours. Otherwise retain ALL sessions; synthesis and reports still run. Explicitly record "cleanup paused: archive unavailable".
+- **Archive safety gate:** Cleanup is allowed ONLY when the runner states "Archive cleanup authorized: true" AND `~/.local/share/sessions/archive-health.json` confirms all three sources, `fullCoverage: true`, `indexed: true`, zero failures, and success within 24 hours. Otherwise retain ALL sessions; synthesis and reports still run. Explicitly record "cleanup paused: archive unavailable".
 - Consolidated notes: retain for at least 2 days AFTER their `consolidated_at` timestamp, not their creation date.
 - Unconsolidated notes older than 5 days: extract and mark consolidated, but still grant the full 2-day verification window.
 - Never delete an index, collection, parent note, or unknown-type note. An original may be pruned only after its useful content exists in durable notes and the safety gate passes.

@@ -20,7 +20,7 @@ function outputPath(root: string, path: string, date: string): string {
 function archiveHealthy(): boolean {
   try {
     const value: unknown = JSON.parse(readFileSync(resolve(homedir(), ".local/share/sessions/archive-health.json"), "utf8"));
-    if (typeof value !== "object" || value === null || !("completedAt" in value) || !("indexed" in value) || !("sources" in value) || !("failures" in value)) return false;
+    if (typeof value !== "object" || value === null || !("completedAt" in value) || !("indexed" in value) || !("sources" in value) || !("failures" in value) || !("fullCoverage" in value) || value.fullCoverage !== true) return false;
     const sources = value.sources;
     return typeof value.completedAt === "string" && Date.now() - Date.parse(value.completedAt) >= 0 && Date.now() - Date.parse(value.completedAt) < 86_400_000 && value.indexed === true && Array.isArray(sources) && ["opencode", "claude", "codex"].every((source) => sources.includes(source)) && Array.isArray(value.failures) && value.failures.length === 0;
   } catch {
