@@ -36,6 +36,11 @@ type = "script"
 script = "fail.ts"
 description = "required output"
 outputs = ["required.md"]
+[workflows.slow]
+type = "script"
+script = "slow.ts"
+description = "slow descendant"
+timeout = 1
 `);
   const cli = resolve(root, "src/wf.ts");
   const env = { ...process.env, WF_NOTIFICATIONS: "0" };
@@ -56,6 +61,10 @@ outputs = ["required.md"]
   const missingOutput = Bun.spawnSync(["bun", cli, "run", "output"], { env });
   expect(missingOutput.exitCode).toBe(1);
   expect(missingOutput.stderr.toString()).toContain("Required output missing or stale");
+  writeFileSync(join(root, "slow.ts"), `Bun.spawn(["bun", "-e", "setTimeout(() => {}, 60000)"], {stdout:"inherit"}); await Bun.sleep(60000);`);
+  const slow = Bun.spawnSync(["bun", cli, "run", "slow"], { env });
+  expect(slow.exitCode).toBe(1);
+  expect(slow.stderr.toString()).toContain("Workflow timed out");
   Bun.spawnSync(["trash", root]);
 }, 15_000);
 

@@ -5,6 +5,7 @@ import type { Config, Workflow } from "./types";
 import { acquireLock, formatDuration, lastSuccessDate, readState, writeState } from "./state";
 import { createSession, interruptSession, sessionOutcome } from "./opencode";
 import { prepareBacklog, commitBacklog } from "./backlog";
+import { descendants, signalProcesses } from "./process";
 
 export function localDate(): string {
   const now = new Date();
@@ -43,8 +44,15 @@ async function runWorkflow(cfg: Config, root: string, name: string, wf: Workflow
   let sessionId: string | undefined;
   let proc: ReturnType<typeof Bun.spawn> | undefined;
   let interrupted = false;
+  let children: number[] = [];
   const outputs = (wf.outputs ?? []).map((path) => outputPath(root, path, date));
-  const interrupt = () => { interrupted = true; proc?.kill("SIGTERM"); };
+  const terminate = () => {
+    if (!proc) return;
+    children = descendants(proc.pid);
+    signalProcesses(children, "SIGTERM");
+    proc.kill("SIGTERM");
+  };
+  const interrupt = () => { interrupted = true; terminate(); };
   process.prependListener("SIGTERM", interrupt);
   process.prependListener("SIGINT", interrupt);
   try {
@@ -68,10 +76,11 @@ async function runWorkflow(cfg: Config, root: string, name: string, wf: Workflow
     if (interrupted) throw new Error("Workflow interrupted before launch");
     proc = Bun.spawn(args, { stdout: "inherit", stderr: "inherit", cwd: root, env });
     let timedOut = false;
-    const timer = setTimeout(() => { timedOut = true; proc?.kill("SIGTERM"); }, (wf.timeout ?? cfg.meta.default_timeout ?? 3600) * 1000);
-    const hardTimer = setTimeout(() => proc?.kill("SIGKILL"), (wf.timeout ?? cfg.meta.default_timeout ?? 3600) * 1000 + 5000);
+    const timer = setTimeout(() => { timedOut = true; terminate(); }, (wf.timeout ?? cfg.meta.default_timeout ?? 3600) * 1000);
+    const hardTimer = setTimeout(() => { signalProcesses(children, "SIGKILL"); proc?.kill("SIGKILL"); }, (wf.timeout ?? cfg.meta.default_timeout ?? 3600) * 1000 + 5000);
     try { code = await proc.exited; } finally { clearTimeout(timer); clearTimeout(hardTimer); }
     if (timedOut || interrupted) {
+      signalProcesses(children, "SIGKILL");
       if (sessionId) await interruptSession(sessionId);
       throw new Error(interrupted ? "Workflow interrupted" : "Workflow timed out");
     }
