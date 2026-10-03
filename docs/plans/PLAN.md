@@ -1,5 +1,7 @@
 # Workflows — Execution Plan
 
+> Current implementation: `2026-10-02-nightly-reliability.md`. This document retains historical architecture decisions; `README.md` describes active behavior.
+
 Scheduled workflow execution for vault maintenance and agent-driven tasks on macOS. Inspired by [Alfred](https://github.com/ssdavidai/alfred) (Temporal-based agent infrastructure) but using launchd (zero-dependency, native macOS scheduler).
 
 ## Architecture

@@ -9,19 +9,20 @@ default_timeout = 3600
 # ── Schedules ──────────────────────────────────────────────────────
 
 [schedules.nightly]
+prevent_sleep = true
 time = { hour = 1, minute = 0 }
-watchdog = { hour = 7, minute = 0 }
 enabled = true
 workflows = [
   "skill-sync",
   "vault-embeddings",
   "vault-inbox-processing",
   "vault-session-processing",
+  "vault-consolidation",
   "vault-grooming",
   "vault-backlog-triage",
   "vault-knowledge-distillation",
-  "vault-consolidation",
   "vault-retrieval-practice",
+  "vault-embeddings-final",
 ]
 
 [schedules.sessions-export]
@@ -48,53 +49,67 @@ script = "scripts/vault-embeddings.ts"
 description = "Re-index Memory vault in QMD for hybrid search"
 timeout = 1800
 
+[workflows.vault-embeddings-final]
+type = "script"
+script = "scripts/vault-embeddings.ts"
+description = "Refresh search after successful vault changes"
+timeout = 1800
+depends_on = ["vault-inbox-processing", "vault-session-processing", "vault-consolidation", "vault-grooming", "vault-backlog-triage", "vault-knowledge-distillation", "vault-retrieval-practice"]
+
 [workflows.vault-inbox-processing]
+depends_on = ["vault-embeddings"]
 type = "agent"
 prompt = "prompts/vault-inbox-processing.md"
-model = "github-copilot/gpt-5.6-terra"
+model = "github-copilot/gpt-6.1-sol#medium"
 description = "Process Knowledge vault inbox into enriched backlog notes"
 timeout = 3600
 
 [workflows.vault-session-processing]
+depends_on = ["vault-embeddings"]
 type = "agent"
 prompt = "prompts/vault-session-processing.md"
-model = "github-copilot/gpt-5.6-terra"
+model = "github-copilot/gpt-6.1-sol#medium"
 description = "Distill session notes into patterns, tools, and project knowledge"
 timeout = 1800
 
 [workflows.vault-grooming]
 type = "agent"
 prompt = "prompts/vault-grooming.md"
-model = "github-copilot/gpt-5.6-sol"
+model = "github-copilot/gpt-6.1-sol#high"
+outputs = ["~/Vaults/Knowledge/00_system/grooming-reports/{date}.md", "~/Vaults/Memory/system/grooming-reports/{date}.md"]
 description = "Sweep both vaults for broken links, orphans, stale notes"
 timeout = 5400
 
 [workflows.vault-backlog-triage]
+outputs = ["~/Vaults/Knowledge/00_system/backlog-triage-reports/{date}.md"]
 type = "agent"
 prompt = "prompts/vault-backlog-triage.md"
-model = "github-copilot/gpt-5.6-terra"
-description = "Evaluate backlog items and rewrite backlog.md with prioritized classifications"
+model = "github-copilot/gpt-6.1-sol#medium"
+description = "Evaluate backlog leaves with independent checkpoints; preserve tree indexes"
 timeout = 3600
 
 [workflows.vault-knowledge-distillation]
 type = "agent"
 prompt = "prompts/vault-knowledge-distillation.md"
-model = "github-copilot/gpt-5.6-terra"
+model = "github-copilot/gpt-6.1-sol#medium"
+outputs = ["~/Vaults/Memory/MEMORY.md"]
 description = "Distill Memory vault into condensed MEMORY.md"
 timeout = 5400
 
 [workflows.vault-consolidation]
+depends_on = ["vault-session-processing"]
 type = "agent"
 prompt = "prompts/vault-consolidation.md"
-model = "github-copilot/gpt-5.6-sol"
+model = "github-copilot/gpt-6.1-sol#high"
+outputs = ["~/Vaults/Memory/system/consolidation-reports/{date}.md"]
 description = "Synthesize cross-cutting insights from recent session notes"
 timeout = 3600
-cadence_days = 1
 
 [workflows.vault-retrieval-practice]
 type = "agent"
 prompt = "prompts/vault-retrieval-practice.md"
-model = "github-copilot/gpt-5.6-sol"
+model = "github-copilot/gpt-6.1-sol#high"
+outputs = ["~/Vaults/Memory/system/retrieval-reports/{date}.md"]
 description = "Spot-check Memory vault notes for accuracy against current reality"
 timeout = 1800
 cadence_days = 7

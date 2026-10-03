@@ -13,8 +13,10 @@ Session processing extracts individual facts. Grooming fixes structure. Distilla
 This runs nightly after session processing. Input = unconsolidated session notes + recently modified vault notes. Output = new pattern notes, a consolidation report, and cleaned-up sessions.
 
 **TTL Policy:** Session notes in the Memory vault are a hot cache — the Sessions vault (persistent Claude/OpenCode session lookup) is the long-term archive. Memory vault sessions should be consolidated quickly and purged aggressively:
-- Consolidated notes (`consolidated: true`): delete after 2 days.
-- Unconsolidated notes older than 5 days: force-consolidate (extract what's useful, then mark consolidated and delete). These are overdue — don't skip them.
+- **Archive safety gate:** Cleanup is allowed ONLY when the runner states "Archive cleanup authorized: true" AND `~/.local/share/sessions/archive-health.json` confirms all three sources, `indexed: true`, zero failures, and success within 24 hours. Otherwise retain ALL sessions; synthesis and reports still run. Explicitly record "cleanup paused: archive unavailable".
+- Consolidated notes: retain for at least 2 days AFTER their `consolidated_at` timestamp, not their creation date.
+- Unconsolidated notes older than 5 days: extract and mark consolidated, but still grant the full 2-day verification window.
+- Never delete an index, collection, parent note, or unknown-type note. An original may be pruned only after its useful content exists in durable notes and the safety gate passes.
 
 ## Steps
 
@@ -25,7 +27,7 @@ List `~/Vaults/Memory/sessions/` with filesystem tools.
 Read every session note. Partition into two sets:
 
 - **Unconsolidated:** `consolidated: false` in frontmatter, or no `consolidated` field at all.
-- **Stale consolidated:** `consolidated: true` AND `created` date is older than 2 days.
+- **Stale consolidated:** `consolidated: true` AND `consolidated_at` is older than 2 days. Missing timestamp: initialize it to today and retain.
 - **Overdue unconsolidated:** no `consolidated` field (or `consolidated: false`) AND `created` date is older than 5 days. These must be force-consolidated in step 2 — extract whatever is useful, then mark consolidated.
 
 If zero unconsolidated notes exist, skip to step 4 (staleness analysis). Still run steps 4-7.
@@ -68,7 +70,7 @@ c. Write the new pattern note via filesystem (`~/Vaults/Memory/patterns/{kebab-n
    summary: "{one-line plain-text summary, 15-25 words, no wikilinks}"
    tags: [{inferred from content}]
    created: YYYY-MM-DD
-    parent: "[[patterns]]"
+   parent: "[[patterns]]"
    ---
 
    # {Pattern Title}
@@ -116,20 +118,19 @@ Do NOT auto-fix any of these. Report them. The agent or user will decide what to
 
 For each unconsolidated session note processed in steps 2-4:
 - Set `consolidated: true` in its frontmatter.
+- Set `consolidated_at: {run date}`. Preserve the original creation date.
 - Write via filesystem (`~/Vaults/Memory/sessions/{file}`) — backtick safety.
 
 ### 6. Clean up stale sessions
 
 Delete session notes that have served their purpose:
 
-**Delete if ANY of these conditions are met:**
-- `consolidated: true` AND `created` date is older than 2 days.
-- `consolidated: true` AND was just marked consolidated in step 5 of this run AND `created` date is older than 5 days (overdue notes — no grace period needed).
+**Delete ONLY when the archive safety gate passes and `consolidated: true` with `consolidated_at` older than 2 days.** Missing timestamp means retain. Never delete notes consolidated during this run.
 
 For each deletion: use `trash ~/Vaults/Memory/sessions/{file}` and log it in the consolidation report.
 
 Do NOT delete any session note that is:
-- `consolidated: true` but less than 2 days old (grace period for verification).
+- `consolidated: true` but consolidated less than 2 days ago.
 - Still `consolidated: false` and less than 5 days old (not yet overdue).
 
 ### 7. Write consolidation report
@@ -177,14 +178,14 @@ parent: "[[consolidation-reports]]"
 ## Sessions Cleaned Up
 
 - Consolidated: {list of session files marked consolidated: true}
-- Deleted: {list of session files removed (>7 days old)}
+- Deleted: {list of session files removed after archive validation and 2-day consolidation grace}
 ```
 
 **Important:** Consolidation reports must NOT contain `[[wikilinks]]`. Use plain text for all file names and note references. Same reasoning as grooming reports — links create graph noise.
 
 ### 8. Print technical log
 
-Print all actions taken to stdout (captured by launchd to `logs/consolidation.out.log`).
+Print actions to stdout (captured by launchd to `logs/nightly.out.log`).
 
 ## Rules
 

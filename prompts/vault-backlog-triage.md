@@ -1,6 +1,6 @@
 # Backlog Triage
 
-Evaluate changed backlog items daily and every backlog item on Sunday, then rewrite `backlog.md` as a prioritized working document.
+Evaluate changed backlog leaves daily and all leaves on Sunday. Write classifications to a separate report; preserve structural navigation.
 
 ## Context
 
@@ -23,12 +23,10 @@ The Knowledge vault is at `~/Vaults/Knowledge/`.
 
 ### Phase 1: Select mode and items
 
-Determine the current local weekday.
+Read `$WF_STATE_DIR/backlog-selection.json`. The runner has already selected mode and exact leaf paths using an independent per-item checkpoint. Evaluate ONLY that list. Never use `backlog.md` modification time. Never evaluate `type: index`, `collection`, `query`, `report`, or `sync-report` notes as backlog items.
 
-- **Sunday full mode:** select every `02_backlog/*.md` leaf except `backlog.md`.
-- **Daily delta mode:** select only leaf notes whose filesystem modification time is newer than `02_backlog/backlog.md`.
-- If `backlog.md` is missing, use full mode.
-- If daily mode selects no notes, print "No changed backlog items to triage." and stop without rewriting `backlog.md`.
+- Empty selection: still write today's report with "No changed backlog items to triage" and preserve the previous full classification report.
+- The runner checkpoints selected items only after this agent succeeds and today's report exists.
 
 Read the existing `backlog.md`, selected notes, and these lightweight indexes directly: `03_active/projects.md`, `06_docs/docs.md`, and `07_knowledge/knowledge.md`. Gather only matching Memory summaries for each selected topic.
 
@@ -71,13 +69,13 @@ Each subagent evaluates per item:
 
 Return: per-item evaluation with all fields above.
 
-### Phase 3: Rewrite `backlog.md` (main agent)
+### Phase 3: Write classifications (main agent)
 
-Synthesize all results before writing. In daily mode, preserve every unchanged item's existing classification and text, then insert or replace only selected items. In Sunday mode, rebuild all classifications.
+Read `00_system/backlog-triage-reports/latest.md` if it exists. In daily mode, preserve every unchanged item's classification and text, then replace only selected evaluations. In full mode, rebuild all classifications from selected leaves.
 
-Do not rewrite `backlog.md` unless every selected item has a completed evaluation. A failed run must leave the previous success marker intact so the next daily run retries the same changed notes.
+Do not replace `latest.md` unless every selected item has a completed evaluation. Failed or incomplete evaluations must retain the previous file and clearly report the failure; the runner will leave its checkpoint unchanged.
 
-Overwrite `02_backlog/backlog.md` with the prioritized structure:
+Write `00_system/backlog-triage-reports/latest.md` and today's dated report with the prioritized structure below. Use `type: report`, `parent: "[[backlog-triage-reports]]"`, `created: {run date}`, `summary`, and `tags: []`. All report item references are plain text filenames, not wikilinks.
 
 ```markdown
 # Backlog Index
@@ -88,26 +86,26 @@ Last triaged: {YYYY-MM-DD}
 
 ## Quick Wins
 
-- [[{item}]] — {one-line summary}. {Stack value or action}. Relates to: {project/docs/knowledge area}.
+- {item}.md — {one-line summary}. {Stack value or action}. Relates to: {project/docs/knowledge area}.
 - ...
 
 ## High Impact
 
-- [[{item}]] — {one-line summary}. {Why high impact}. Relates to: {project/docs/knowledge area}.
+- {item}.md — {one-line summary}. {Why high impact}. Relates to: {project/docs/knowledge area}.
 - ...
 
 ## Stale
 
-- [[{item}]] — {one-line summary}. {Why stale}. Suggestion: {kill/merge into knowledge/revive with fresh research}.
+- {item}.md — {one-line summary}. {Why stale}. Suggestion: {kill/merge into knowledge/revive with fresh research}.
 - ...
 
 ## Holding
 
-- [[{item}]] — {one-line summary}. {Why holding}. Relates to: {project/docs/knowledge area}.
+- {item}.md — {one-line summary}. {Why holding}. Relates to: {project/docs/knowledge area}.
 - ...
 ```
 
-Write via filesystem. `backlog.md` uses `parent: "[[Home]]"` in frontmatter.
+Create/maintain `00_system/backlog-triage-reports/backlog-triage-reports.md` as an index (`parent: "[[system]]"`). List latest and dated reports. Add one navigation link to this report index in `02_backlog/backlog.md`, preserving every existing structural listing. Never flatten backlog navigation or remove/reclassify its sub-indexes. This reporting index is exempt from the ten-child cap because its entries are dated reports.
 
 ### Phase 4: Log
 
@@ -123,10 +121,10 @@ Changes from last triage: {items reclassified, new items evaluated, items remove
 
 - Fully autonomous — no user interaction. This is a nightly workflow.
 - Never delete backlog items. Classification only. Deletion is Phil's decision via `/obs-triage`.
-- Never create new notes. Only rewrite `backlog.md`.
+- Create only the classification reports and their index; edit `backlog.md` only to add the single report-navigation link.
 - Do not use the Obsidian app CLI for routine vault work.
-- Preserve all `[[wikilinks]]` in `backlog.md` — every listed item must be a wikilink to its note.
-- `backlog.md` uses `parent: "[[Home]]"` in frontmatter. No other outgoing links from `backlog.md` except child wikilinks to backlog items.
+- Preserve all existing `[[wikilinks]]` and tree navigation in `backlog.md`.
+- `backlog.md` retains `parent: "[[Home]]"`. Classification is separate from structural membership.
 - Items that arrived from inbox processing earlier in the nightly pipeline: evaluate them with the same criteria. They may lack research — fetch their URLs and enrich the evaluation.
 - Freshness checks: if a URL returns 404 or the repo is archived, mark the item `stale` with reason.
 - If an item's capability is already fully covered by an existing tool/pattern in Memory vault, mark it `stale` with "already implemented: {what covers it}."

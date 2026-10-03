@@ -6,7 +6,7 @@ Spot-check Memory vault notes for accuracy. Sample random notes, verify against 
 
 1. **You MUST write the retrieval report before exiting.** An exit without writing `~/Vaults/Memory/system/retrieval-reports/{date}.md` is a workflow failure regardless of exit code.
 2. If any command fails or is rejected, **continue to the next step**. Never stop the workflow early.
-3. You have read-only access to `~/Repos/**` and `~/Vaults/**`. You can use Read/Glob/Grep or bash on these paths. You **cannot** Edit/Write to `~/Repos/`. For paths outside these (like `/etc/`, `/private/`), use bash commands only.
+3. Repositories are read-only. Vault writes are limited to the retrieval report, its index, and adding `verified`/`verification_result` on successfully checked Memory notes. Use filesystem tools; never modify repository files.
 
 ## Context
 
@@ -31,7 +31,7 @@ Build candidate pool:
 rg -l '^type:' ~/Vaults/Memory/ --glob '*.md' 2>/dev/null
 ```
 
-Exclude: root files (MEMORY/IDENTITY/SOUL/USER.md), folder parents (*/<folder>.md), collection notes (type: collection), report directories (grooming-reports/, consolidation-reports/, retrieval-reports/), session notes (sessions/).
+Exclude root files, folder parents, all index/collection notes, ALL `type: sync-report` and `type: report` notes regardless of folder, and sessions. Sample actionable tool/project/pattern claims rather than historical operational logs.
 
 From filtered pool, select **6 notes**. Priority: never-verified first, then oldest `verified` date.
 
@@ -70,7 +70,7 @@ If any check fails or is rejected, score as "unverifiable" and move on.
 
 **3c.** Score: **accurate** | **minor drift** | **major drift** | **obsolete** | **unverifiable**
 
-**3d.** **Record immediately** — append result AND update `verified` timestamp:
+**3d.** **Record immediately** — append result and appropriate verification metadata:
 
 ```bash
 cat >> /tmp/rp_results.md << 'EOF'
@@ -78,7 +78,7 @@ cat >> /tmp/rp_results.md << 'EOF'
 EOF
 ```
 
-Then Edit the note's frontmatter to add/update `verified: YYYY-MM-DD`.
+For accurate or drift findings backed by actual checks, add/update `verified: YYYY-MM-DD` and `verification_result: {score}`. Unverifiable notes receive only `verification_result: unverifiable`, preserving their previous verified date.
 
 **Only after 3d is complete, move to the next note.** This ensures results survive even if a later note causes errors.
 
@@ -128,7 +128,7 @@ parent: "[[retrieval-reports]]"
 
 Before you finish, verify:
 - [ ] `/tmp/rp_results.md` has entries for all sampled notes
-- [ ] Each checked note has `verified: YYYY-MM-DD` in frontmatter (done in Step 3d)
+- [ ] Successfully checked notes have today's `verified`; unverifiable notes retain their prior date and record their result
 - [ ] Report file exists at `~/Vaults/Memory/system/retrieval-reports/{YYYY-MM-DD}.md`
 
 If any check fails, fix it before exiting. **An exit without writing the report is a workflow failure regardless of exit code.**

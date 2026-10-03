@@ -37,7 +37,7 @@ List `~/Vaults/Memory/` recursively with filesystem tools.
 
 2. For notes with a `summary:` field in frontmatter — use it directly. No full read needed unless the summary is unclear or you need to update the MEMORY.md entry significantly.
 
-3. For notes WITHOUT a `summary:` field — read the full note to categorize and summarize. Add a `summary:` field to the frontmatter while you're there (backfill).
+3. For notes WITHOUT a `summary:` field — read only enough to categorize and summarize for this hub. Report missing summaries; source note edits belong to grooming.
 
 4. If `qmd` is on PATH, use `qmd query` to cluster notes by topic instead of reading all sequentially.
 

@@ -31,7 +31,7 @@ function wakeTime(minuteOfDay: number): string {
 // ── pmset helpers ──────────────────────────────────────────────────
 
 function runSudo(args: string[]): { ok: boolean; stderr: string } {
-  const result = Bun.spawnSync(["sudo", ...args], {
+  const result = Bun.spawnSync(["sudo", "-n", ...args], {
     stdout: "ignore",
     stderr: "pipe",
   });
@@ -64,6 +64,17 @@ export function configureScheduledWake(cfg: Config): void {
   }
 
   const time = wakeTime(earliest);
+  const current = currentRepeatWake();
+  if (current) {
+    const match = current.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+    if (match) {
+      const hour = Number(match[1]) % 12 + (match[3].toUpperCase() === "PM" ? 12 : 0);
+      if (hour * 60 + Number(match[2]) === earliest) {
+        console.log(`scheduled wake already ${current}`);
+        return;
+      }
+    }
+  }
   const { ok, stderr } = runSudo([
     "pmset",
     "repeat",
@@ -78,6 +89,7 @@ export function configureScheduledWake(cfg: Config): void {
     console.log(
       `  ${c.bYellow}warn${R} failed to set scheduled wake: ${c.dim}${stderr}${R}`,
     );
+    console.log(`Run: sudo pmset repeat wakeorpoweron MTWRFSU ${time}`);
   }
 }
 

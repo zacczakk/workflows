@@ -17,7 +17,7 @@ Find session notes that haven't been processed yet:
 rg -l '^consolidated: false' ~/Vaults/Memory/sessions/ --glob '*.md' 2>/dev/null > /tmp/sessions_false.txt
 
 # Files missing consolidated field entirely (new notes)
-rg -L '^consolidated:' ~/Vaults/Memory/sessions/ --glob '*.md' 2>/dev/null >> /tmp/sessions_false.txt
+rg --files-without-match '^consolidated:' ~/Vaults/Memory/sessions/ --glob '*.md' >> /tmp/sessions_false.txt
 
 # Exclude the index file
 grep -v 'sessions\.md$' /tmp/sessions_false.txt | sort -u > /tmp/sessions_to_process.txt
@@ -56,12 +56,12 @@ d. **Create or update target notes.** For each extractable item:
      summary: "{one-line plain-text summary, 15-25 words, no wikilinks}"
      tags: []
      created: YYYY-MM-DD
-      parent: "[[folder-parent-or-collection]]"
+     parent: "[[folder-parent-or-collection]]"
      ---
 
      # {Title}
 
-     {Distilled content — concise, actionable, with [[wikilinks]]}
+      {Distilled content — concise, actionable, plain-text note references}
      ```
    - The `summary` field is mandatory on all new notes. It must be a single line of plain text that captures the core insight — what an agent needs to know without reading the body. No wikilinks, no markdown.
    - For merged notes: preserve existing frontmatter, append or update content sections. Add `summary` if missing.

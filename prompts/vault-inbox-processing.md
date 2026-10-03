@@ -96,7 +96,7 @@ The Knowledge vault is at `~/Vaults/Knowledge/`.
    j. **Create enriched note in backlog** (non-project items only):
        Write `~/Vaults/Knowledge/02_backlog/{kebab-name}.md` directly with the required frontmatter, summary, research, references, and task sections.
 
-   k. **Delete the original:** use `trash ~/Vaults/Knowledge/01_inbox/{file}`.
+    k. **Verify every destination was written and re-read successfully**, including original source URL/text and all split topics. Only then use `trash ~/Vaults/Knowledge/01_inbox/{file}`. If enrichment or any write fails, retain the original and report the item incomplete.
 
 3. **Print summary** when done:
    ```

@@ -15,6 +15,8 @@ export interface Workflow {
   description: string;
   timeout?: number;
   cadence_days?: number;
+  depends_on?: string[];
+  outputs?: string[];
 }
 
 // ── Schedule ────────────────────────────────────────────────────────
@@ -25,6 +27,7 @@ export interface CalendarSchedule {
   watchdog?: TimeSpec;
   enabled: boolean;
   workflows: string[];
+  prevent_sleep: boolean;
 }
 
 export interface IntervalSchedule {
@@ -32,6 +35,7 @@ export interface IntervalSchedule {
   interval: number; // seconds
   enabled: boolean;
   workflows: string[];
+  prevent_sleep: boolean;
 }
 
 export type ScheduleDef = CalendarSchedule | IntervalSchedule;
@@ -65,6 +69,7 @@ export interface RunEntry {
   startedAt: string;
   exitCode: number;
   durationMs: number;
+  sessionId?: string;
 }
 
 export interface RunState {
@@ -73,4 +78,5 @@ export interface RunState {
   lastDurationMs: number;
   consecutiveFailures: number;
   history: RunEntry[];
+  lastSuccess?: string;
 }

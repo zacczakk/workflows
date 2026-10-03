@@ -21,7 +21,7 @@ This workflow has a 90-minute timeout. Do NOT read every file in either vault. U
 
 ### Phase 1: Build the link graph (no file reads)
 
-Build a complete wikilink adjacency map for both vaults using `rg`. This replaces reading every file.
+Build a complete wikilink adjacency map for both vaults using `rg`. Restrict content scans to `*.md`, exclude app/config folders, and record command exit codes. Exit 1 means no matches; exit 2 or a timeout means the scan is incomplete. Never derive orphans, deletions, or repairs from a partial inventory. Retry the affected bounded scan; if still blocked, write reports marked incomplete and report workflow failure.
 
 ```bash
 # 1a. Get all files in both vaults
@@ -29,8 +29,8 @@ rg --files ~/Vaults/Knowledge/ > /tmp/knowledge_files.txt
 rg --files ~/Vaults/Memory/ > /tmp/memory_files.txt
 
 # 1b. Extract all wikilinks from every file (filename:line:match)
-rg -o '\[\[([^\]|#]+)[^\]]*\]\]' --no-heading -r '$1' ~/Vaults/Knowledge/ > /tmp/knowledge_links.txt
-rg -o '\[\[([^\]|#]+)[^\]]*\]\]' --no-heading -r '$1' ~/Vaults/Memory/ > /tmp/memory_links.txt
+rg -o '\[\[([^\]|#]+)[^\]]*\]\]' --glob '*.md' --no-heading -r '$1' ~/Vaults/Knowledge/ > /tmp/knowledge_links.txt
+rg -o '\[\[([^\]|#]+)[^\]]*\]\]' --glob '*.md' --no-heading -r '$1' ~/Vaults/Memory/ > /tmp/memory_links.txt
 
 # 1d. Extract parent links from frontmatter (more reliable than wikilink scanning for tree structure)
 rg '^parent:' ~/Vaults/Knowledge/ --glob '*.md' --glob '!.obsidian/**' --glob '!.planning/**' --no-heading > /tmp/knowledge_parents.txt
@@ -147,6 +147,8 @@ For each:
 3. Remove listings for moved/deleted notes.
 4. Add listings for notes in the folder that are missing from the listing.
 5. Log all changes.
+
+**Backlog ownership:** `02_backlog/backlog.md` is navigation only. Classification belongs to `00_system/backlog-triage-reports/`; preserve its report link and all report evaluations. Never overwrite priority reports or treat reports as backlog leaves. All dated report indexes, including backlog triage and retrieval, are exempt from the ten-child cap.
 
 ### Phase 7: Multi-topic detection (lightweight)
 
