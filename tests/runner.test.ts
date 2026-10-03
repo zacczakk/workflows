@@ -2,6 +2,8 @@ import { expect, test } from "bun:test";
 import { cpSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { validateConfig } from "../src/validate";
+import { TOML } from "bun";
 
 test("wf skips failed dependencies and preserves its last successful checkpoint", () => {
   const root = mkdtempSync(join(tmpdir(), "wf-runner-"));
@@ -74,4 +76,10 @@ test("wf reports actual local timezone and only nightly owns sleep", () => {
   expect(cli.stdout.toString()).toContain("Europe/Berlin");
   expect(cli.stdout.toString().match(/sleep owner/g)).toHaveLength(1);
   expect(cli.stdout.toString()).toContain("github-copilot/gpt-6.1-sol#high");
+});
+
+test("schedule rejects overlapping sleep owners and premature watchdogs", () => {
+  const text = readFileSync("workflows.toml", "utf8");
+  expect(() => validateConfig(TOML.parse(text.replace('prevent_sleep = true', 'prevent_sleep = true\nwatchdog = { hour = 1, minute = 15 }')))).toThrow("watchdog must follow");
+  expect(() => validateConfig(TOML.parse(text.replace('[schedules.log-maintenance]', '[schedules.log-maintenance]\nprevent_sleep = true')))).toThrow("only one enabled schedule");
 });

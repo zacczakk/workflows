@@ -28,26 +28,26 @@
 
 ### Task 2: Repair runner ownership and outcomes
 
-- [ ] Add `wf` CLI regression fixtures using real Bun scripts and temporary config/source files; test failed dependencies, persistent successful state, schedule validation, and report prerequisites.
-- [ ] Run `bun test`; observe the new checks fail.
-- [ ] Split execution and installation out of oversized `src/wf.ts`. Add explicit `prevent_sleep` schedule field, default false; watchdogs only for sleep-owning schedules and remove obsolete registered watchdogs during install.
-- [ ] Require OpenCode V2; create each agent session with a known ID and repository location, run that ID, query its exact V2 outcome and required report. Fail closed on missing evidence.
-- [ ] Use atomic state, independent last-success marker, per-workflow execution locks, failure notifications, and archive freshness env for consolidation. Refresh index only after successful producers.
-- [ ] Run CLI tests and real V2 smoke; commit.
+- [x] Add `wf` CLI regression fixtures using real Bun scripts and temporary config/source files; test failed dependencies, persistent successful state, schedule validation, and report prerequisites.
+- [x] Run `bun test`; observe the new checks fail.
+- [x] Split execution and installation out of oversized `src/wf.ts`. Add explicit `prevent_sleep` schedule field, default false; watchdogs only for sleep-owning schedules and remove obsolete registered watchdogs during install.
+- [x] Require OpenCode V2; create each agent session with a known ID and repository location, run that ID, query its exact V2 outcome and required report. Fail closed on missing evidence.
+- [x] Use atomic state, independent last-success marker, per-workflow execution locks, failure notifications, and archive freshness env for consolidation. Refresh index only after successful producers.
+- [x] Run CLI tests and real V2 smoke; commit.
 
 ### Task 3: Repair prompts, order, and models
 
-- [ ] Set four workflows to `github-copilot/gpt-6.1-sol#medium`; grooming, consolidation, retrieval to `#high`.
-- [ ] Order: skill sync, embeddings, inbox, sessions, consolidation, grooming, backlog, distillation, retrieval, final embeddings.
-- [ ] Backlog evaluations live in a separate report; structural indexes retain navigation. Select leaf notes only; persist per-item triage checkpoint independent of grooming mtimes.
-- [ ] Require archive health before consolidation pruning; protect indexes and use consolidation timestamps for retention.
-- [ ] Replace `rg -L` with `--files-without-match`, fix frontmatter examples and contradictory scope, exclude sync reports from retrieval samples, validate complete scans before edits.
-- [ ] Update README and active plan to match behavior; run all tests.
+- [x] Set four workflows to `github-copilot/gpt-6.1-sol#medium`; grooming, consolidation, retrieval to `#high`.
+- [x] Order: skill sync, embeddings, inbox, sessions, consolidation, grooming, backlog, distillation, retrieval, final embeddings.
+- [x] Backlog evaluations live in a separate report; structural indexes retain navigation. Select leaf notes only; persist per-item triage checkpoint independent of grooming mtimes.
+- [x] Require archive health before consolidation pruning; protect indexes and use consolidation timestamps for retention.
+- [x] Replace `rg -L` with `--files-without-match`, fix frontmatter examples and contradictory scope, exclude sync reports from retrieval samples, validate complete scans before edits.
+- [x] Update README and active plan to match behavior; run all tests.
 
 ### Task 4: Install and prove
 
-- [ ] Integrate only committed owned changes to clean main checkouts; rebuild with the existing Developer ID identity.
-- [ ] Reinstall launchd schedules; preserve current wake schedule if sudo needs interactive authorization; show actual timezone in status.
+- [x] Integrate only committed owned changes to clean main checkouts; rebuild with the existing Developer ID identity.
+- [x] Reinstall launchd schedules; preserve current wake schedule if sudo needs interactive authorization; show actual timezone in status.
 - [ ] Run one live nightly batch with observable logs; verify exact model IDs, reports, backlog evaluation, final graph links, export state, and QMD freshness.
 - [ ] Record evidence and remaining blockers in session notes. No remote push.
 
