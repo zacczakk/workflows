@@ -91,6 +91,7 @@ Read `/tmp/rp_results.md` to recall findings, then write the full report to `~/V
 ```markdown
 ---
 type: sync-report
+summary: "{one-line sampled accuracy and drift findings}"
 tags: []
 created: YYYY-MM-DD
 parent: "[[retrieval-reports]]"

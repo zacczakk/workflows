@@ -205,6 +205,7 @@ Write to `~/Vaults/Memory/system/grooming-reports/{YYYY-MM-DD}.md`:
 ```markdown
 ---
 type: sync-report
+summary: "{one-line results and remaining structural issues}"
 tags: []
 created: YYYY-MM-DD
 parent: "[[grooming-reports]]"

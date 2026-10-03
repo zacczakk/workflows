@@ -140,6 +140,7 @@ Write to `~/Vaults/Memory/system/consolidation-reports/{YYYY-MM-DD}.md` via file
 ```markdown
 ---
 type: sync-report
+summary: "{one-line synthesis, archive safety, and cleanup results}"
 tags: []
 created: YYYY-MM-DD
 parent: "[[consolidation-reports]]"
