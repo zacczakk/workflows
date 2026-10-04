@@ -24,6 +24,8 @@ This runs nightly after session processing. Input = unconsolidated session notes
 
 List `~/Vaults/Memory/sessions/` with filesystem tools.
 
+Exclude `sessions.md` and all `type: index` or `type: collection` files from lifecycle processing. They are navigation, not source sessions; never mark them consolidated or apply TTL.
+
 Read every session note. Partition into two sets:
 
 - **Unconsolidated:** `consolidated: false` in frontmatter, or no `consolidated` field at all.

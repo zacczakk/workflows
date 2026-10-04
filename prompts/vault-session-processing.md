@@ -24,6 +24,7 @@ grep -v 'sessions\.md$' /tmp/sessions_false.txt | sort -u > /tmp/sessions_to_pro
 ```
 
 - If empty, say "No unconsolidated session notes to process." and stop.
+- Exclude all index/collection notes from processing even if they carry an old `consolidated: false` field.
 
 ### 2. Process each unconsolidated session note
 
