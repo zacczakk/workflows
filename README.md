@@ -4,7 +4,7 @@ Scheduled vault maintenance using Bun, OpenCode V2, and macOS launchd.
 
 ## Schedule
 
-Calendar times use the **Mac's local timezone**, printed by `wf status`. The wake is 00:55; nightly starts at 01:00. Reinstall after timezone changes to refresh launchd timers.
+Calendar times use the **Mac's local timezone**, printed by `wf status`. The wake and nightly start are 01:00. Log maintenance is scheduled at 00:55 and can catch up on wake. Reinstall after timezone changes to refresh launchd timers.
 
 Nightly runs sequentially:
 

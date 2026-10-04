@@ -1,6 +1,6 @@
 const proc = Bun.spawn(
   ["sessions", "export"],
-  { stdout: "inherit", stderr: "inherit" },
+  { stdout: "inherit", stderr: "inherit", env: { ...process.env, PYTHONUNBUFFERED: "1" } },
 );
 
 const code = await proc.exited;

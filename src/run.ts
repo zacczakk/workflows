@@ -61,7 +61,7 @@ async function runWorkflow(cfg: Config, root: string, name: string, wf: Workflow
       const prompt = readFileSync(resolve(root, wf.prompt), "utf8");
       args = ["opencode", "run", "--session", sessionId];
       if (wf.model) args.push("-m", wf.model);
-      args.push(`Run date: ${date}. Archive cleanup authorized: ${env.WF_ARCHIVE_HEALTHY === "1"}. Use this date for all reports. Workflow state directory: ${directory}. Backlog selection file: ${resolve(directory, "backlog-selection.json")}. Read these exact paths; shared-server shells may not inherit WF environment variables. Required outputs: ${outputs.join(", ") || "none"}. ${env.WF_ARCHIVE_HEALTHY !== "1" ? "Retain all session notes; archive health is unproven." : ""}\n\n${prompt}`);
+      args.push(`Run date: ${date}. Archive cleanup authorized: ${env.WF_ARCHIVE_HEALTHY === "1"}. Use this date for all reports. Workflow state directory: ${directory}.${selection ? ` Backlog selection file: ${resolve(directory, "backlog-selection.json")}.` : ""} Read supplied paths exactly; shared-server shells may not inherit WF environment variables. Required outputs: ${outputs.join(", ") || "none"}. ${env.WF_ARCHIVE_HEALTHY !== "1" ? "Retain all session notes; archive health is unproven." : ""}\n\n${prompt}`);
       console.log(`session ${sessionId} model ${wf.model}`);
     } else {
       if (!wf.script) throw new Error("Missing script path");
