@@ -85,7 +85,7 @@ wf install
 wf status
 ```
 
-QMD's `~/.config/qmd/index.yml` supports per-collection `ignore` patterns. Exclude dated operational logs from the Memory search collection (`system/skill-sync-*.md` and grooming/consolidation/retrieval report folders). These history files remain on disk. Index regenerated OpenCode files with `opencode/**/*-ses_*.md`; Claude/Codex exports can use `*-????????-????-????-????-????????????.md` to retain full-ID files and bypass older truncated-ID history. Preserve source databases and old exports until the replacement archive is proven.
+QMD's `~/.config/qmd/index.yml` supports per-collection `ignore` patterns. Exclude dated operational logs from the Memory search collection (`system/skill-sync-*.md` and grooming/consolidation/retrieval report folders). These history files remain on disk. The `sessions` collection indexes `~/.local/share/sessions/archive/` with `**/*.md`; exports mirror changed sessions to `~/Vaults/Sessions/` separately. iCloud mirror failures are visible and retried without blocking local search. Preserve source databases and older synced exports.
 
 Installation preserves a matching existing daily wake. If changing the wake requires authorization, run the printed `sudo pmset repeat wakeorpoweron MTWRFSU HH:MM:00` command, then check `wf status`.
 
