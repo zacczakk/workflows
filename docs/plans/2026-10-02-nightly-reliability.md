@@ -24,7 +24,7 @@
 - [x] Run `bun test scripts/__tests__/sessions-opencode.test.ts` in metronome; watch the collision assertion fail.
 - [x] Implement same-directory temporary write, flush, atomic replacement, unique session-ID filenames, bounded per-item failure handling, incremental checkpoint persistence, and exporter lock. Failed exports stay nonzero; propagate QMD failures.
 - [x] Rerun tests; update sessions docs; commit with `committer`.
-- [ ] Run real export with the updated command; confirm checkpoint and FTS freshness. Keep cleanup paused if any item fails.
+- [x] Run real export with the updated command; confirm checkpoint and FTS freshness. Keep cleanup paused if any item fails.
 
 ### Task 2: Repair runner ownership and outcomes
 
@@ -48,8 +48,8 @@
 
 - [x] Integrate only committed owned changes to clean main checkouts; rebuild with the existing Developer ID identity.
 - [x] Reinstall launchd schedules; preserve current wake schedule if sudo needs interactive authorization; show actual timezone in status.
-- [ ] Run one live nightly batch with observable logs; verify exact model IDs, reports, backlog evaluation, final graph links, export state, and QMD freshness.
-- [ ] Record evidence and remaining blockers in session notes. No remote push.
+- [x] Run one live nightly batch with observable logs; verify exact model IDs, reports, backlog evaluation, final graph links, export state, and QMD freshness.
+- [x] Record evidence and remaining blockers in session notes. No remote push.
 
 ## Evidence / scope adjustments
 
@@ -65,3 +65,14 @@
 - Scheduled October 4 batch passed 7 producers and weekly skip; consolidation safely blocked, so final embeddings skipped. Backlog proof covers all 126 selected leaves; grooming repaired all 47 stale session listings. Live all-green acceptance remains pending local archive health.
 - Wake now follows the 01:00 sleep-owning nightly trigger; install prints required user sudo command because existing 00:55 wake cannot change non-interactively. User authorization command remains pending.
 - Local archive migration passed 13 metronome script tests and live source regeneration (10,762 OpenCode / 421 Claude / 67 Codex). Sequential acceptance now runs full indexed exporter then nightly; log `nightly-acceptance.log` in approved OpenCode temp directory. The interval exporter is paused only for this acceptance and must be reloaded afterward.
+
+## Final acceptance — 2026-10-04
+
+- Full indexed exporter passed in 2m04s: local archive has all-source `fullCoverage: true`, `indexed: true`, zero failures, and zero pending cloud mirrors; completedAt 19:02:52 UTC.
+- Live nightly passed: **9 passed, 0 failed, 1 weekly cadence skip in 23m32s**. Exact six agent API outcomes are succeeded with configured GPT-6.1 Sol medium/high and correct repository location.
+- First Sunday backlog baseline evaluated 126 leaves; follow-up correctly selected zero and refreshed dated/latest reports with empty exact-coverage manifest. Independent checkpoint preserved.
+- Consolidation retained all 135 source sessions and initialized missing consolidation timestamps; no sessions deleted. Grooming checks report zero dangling/ambiguous links, missing required fields, cycles, or fanout violations; six pre-existing root-placement issues remain report-only.
+- Final QMD refresh passed in 15s; 11,250 archived sessions, 139,378 vectors, zero pending; current Memory index. Source databases and synced exports preserved.
+- Half-hour exporter LaunchAgent reloaded and status reports scheduled. SleepDisabled is 0; runner locks removed. Root binary signature validates; automated suites and live model smoke pass.
+- Only machine setup action outstanding: user `sudo pmset repeat wakeorpoweron MTWRFSU 01:00:00`; current repeating wake remains 00:55 because noninteractive sudo cannot change it. Three Knowledge canvases still intermittently unreadable via iCloud; reported without source mutation.
+- Local commits integrated; no remote push. Metronome's unrelated ponytail skill edits preserved.
