@@ -85,7 +85,7 @@ wf install
 wf status
 ```
 
-QMD's `~/.config/qmd/index.yml` supports per-collection `ignore` patterns. Exclude dated operational logs from the Memory search collection (`system/skill-sync-*.md` and grooming/consolidation/retrieval report folders). These history files remain on disk. The `sessions` collection indexes `~/.local/share/sessions/archive/` with `**/*.md`; exports are local-only. Migration of former cloud files targets `~/.local/share/sessions/legacy-icloud/`; import cloud-only session identities into the indexed archive after verification. Interrupted migration retains cloud originals. Preserve source databases and local archives through normal Mac backups.
+QMD's `~/.config/qmd/index.yml` supports per-collection `ignore` patterns. Exclude dated operational logs from the Memory search collection (`system/skill-sync-*.md` and grooming/consolidation/retrieval report folders). These history files remain on disk. The `sessions` collection indexes `~/.local/share/sessions/archive/` with `**/*.md`; exports are local-only and refresh only that collection. Former cloud files are verified under `~/.local/share/sessions/legacy-icloud/`; cloud-only transcripts are indexed under `archive/legacy-icloud/`. The old cloud folder/symlink was removed after full checksum verification. Preserve source databases and local archives through normal Mac backups.
 
 Installation preserves a matching existing daily wake. If changing the wake requires authorization, run the printed `sudo pmset repeat wakeorpoweron MTWRFSU HH:MM:00` command, then check `wf status`.
 
