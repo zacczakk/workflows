@@ -28,12 +28,12 @@
 
 ## Tasks
 
-- [ ] Audit old findings and external references; write rolling records.
-- [ ] Trash eligible logs; repair indexes; verify protected hashes and links.
+- [x] Audit old findings and external references; write rolling records. Historical retrieval caveats preserved verbatim in substance, without claiming fresh confirmation.
+- [x] Trash eligible logs; repair indexes; verify protected hashes and links. Knowledge: 86 logs. Memory: 347 logs including one standalone legacy retrieval report, plus 33 obsolete navigation collections. All 681 protected Memory notes unchanged.
 - [x] Add weekly ordering/output/safety tests; observed two missing-feature failures before wiring.
 - [x] Add prompt/TOML workflow: Sol high, seven-day cadence, two required rolling outputs, 900-second timeout and ten candidates per family.
 - [x] Update README; `bun test`: 10 pass, one opt-in skip; separate live OpenCode test: one pass.
-- [ ] Commit with `committer`; integrate locally; live-run maintenance and refresh search/schedule.
+- [ ] Commit with `committer`; integrate locally; live-run maintenance and refresh search/schedule. Code integrated as c1fee03; signed binary rebuilt/verified; only nightly watchdog reloaded to computed 09:35. All eleven tests including live OpenCode pass.
 
 ## Acceptance
 

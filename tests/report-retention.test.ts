@@ -42,7 +42,7 @@ test("weekly cadence satisfies consumers and partial cleanup fails real output c
   const root = mkdtempSync(join(tmpdir(), "wf-report-cadence-"));
   try {
     cpSync("src", join(root, "src"), { recursive: true });
-    writeFileSync(join(root, "maintenance.ts"), `await Bun.write("findings.md", "---\\nstatus: complete\\n---\\ncovered");`);
+    writeFileSync(join(root, "maintenance.ts"), `await Bun.write("findings.md", "---\\nretention_status: complete\\n---\\ncovered");`);
     writeFileSync(join(root, "consumer.ts"), `await Bun.write("consumer.md", "indexed");`);
     writeFileSync(join(root, "workflows.toml"), `
 [meta]
@@ -78,7 +78,7 @@ outputs = ["consumer.md"]
     expect(next.stdout.toString()).toContain("skip vault-report-maintenance: cadence 7d");
     expect(next.stdout.toString()).toContain("ok consumer");
     expect(readFileSync(join(root, "state/vault-report-maintenance.json"), "utf8")).toBe(checkpoint);
-    writeFileSync(join(root, "maintenance.ts"), `await Bun.write("findings.md", "---\\nstatus: partial\\n---\\nstatus: complete");`);
+    writeFileSync(join(root, "maintenance.ts"), `await Bun.write("findings.md", "---\\nretention_status: partial\\n---\\nretention_status: complete");`);
     const partial = run("vault-report-maintenance");
     expect(partial.exitCode).toBe(1);
     expect(partial.stderr.toString()).toContain("Report maintenance incomplete");
