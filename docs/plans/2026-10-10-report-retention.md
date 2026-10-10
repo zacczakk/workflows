@@ -33,7 +33,7 @@
 - [x] Add weekly ordering/output/safety tests; observed two missing-feature failures before wiring.
 - [x] Add prompt/TOML workflow: Sol high, seven-day cadence, two required rolling outputs, 900-second timeout and ten candidates per family.
 - [x] Update README; `bun test`: 10 pass, one opt-in skip; separate live OpenCode test: one pass.
-- [ ] Commit with `committer`; integrate locally; live-run maintenance and refresh search/schedule. Code integrated as c1fee03; signed binary rebuilt/verified; only nightly watchdog reloaded to computed 09:35. All eleven tests including live OpenCode pass.
+- [x] Commit with `committer`; integrate locally; live-run maintenance and refresh search/schedule. Signed binary rebuilt/verified; only nightly watchdog reloaded to computed 09:35. All eleven tests including live OpenCode pass.
 
 ## Acceptance
 
@@ -46,3 +46,12 @@
 - Infra review found that cleanup dependencies would unnecessarily block distillation; keep that refresh independent.
 - Bounded batches limit weekly work. Exact frontmatter completion status rejects partial results through real CLI tests.
 - Metronome's sync-upstream-skills.ts writes daily skill logs; nightly grooming normalizes their tags/navigation.
+
+## Live acceptance
+
+- First smoke failed safely after 8m26s: zero moves, 64 retained reports, 1,437 readable protected files unchanged. It over-scanned unrelated iCloud content and encountered 122 unavailable placeholders.
+- Mandatory zero-candidate path now verifies only allowlisted reports/indexes, navigation and preserved rolling findings. Unrelated iCloud readability cannot fail a zero-move run.
+- Removal runs retain visible vault-reference/content gates. Completion metadata is retention_status, separate from note lifecycle status.
+- Scoped retry passed in 3m15s through the installed signed runner and configured Sol/high model. All 64 retained report bodies/index hashes unchanged; both rolling findings blocks byte-identical; two fresh retention_status complete outputs.
+- QMD update/embed passed in 13s; 31 documents and 67 chunks refreshed. Nightly and half-hour export timers remain scheduled.
+- Future grooming suffixes use the exact historical hyphenated pattern; full hash ledgers stay in temporary manifests instead of filling stdout.

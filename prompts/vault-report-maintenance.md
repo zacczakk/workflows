@@ -18,6 +18,8 @@ Match whole filenames and confirm report content/frontmatter. Legacy reference-t
 
 Only the two grooming families allow single-letter suffixes. Skill date-range files such as skill-sync-2026-03-19-24.md are navigation collections, never daily report candidates.
 
+Grooming filenames match `^\d{4}-\d{2}-\d{2}(?:-[a-z])?\.md$`; the historical suffix includes its separating hyphen, as in 2026-03-10-b.md.
+
 ## Retention and content gate
 
 1. Inventory the five families. Retain dates within 30 calendar days of the supplied run date, future dates, and the newest report in each family even when older. Use date arithmetic, not file mtime. Never remove today's report.
@@ -48,3 +50,5 @@ Always refresh BOTH rolling outputs, even when there are No candidates. Preserve
 Both output frontmatters require retention_status: complete only after all selected operations and verification succeed. Keep this separate from the vault's normal active/deprecated status field. Deferred candidates and explicitly retained exceptions are valid completed outcomes when transparently recorded. On a failed move, incomplete inventory or unverified post-move state, preserve findings with retention_status: partial in both outputs and report failure; never claim complete. The runner rejects partial/missing completion status.
 
 For a removal run, validate all edited navigation targets, exact retained/newest files, no dangling removed references and protected vault-note before/after sha256 values. For a zero-move run, use only the mandatory fast-path checks above. Partial or unreadable allowlisted report inventories must be stated; never claim complete cleanup from incomplete scans. Print every move and final counts. A no-op run is success only after both required outputs are refreshed and verified.
+
+Keep hash detail in one temporary JSON manifest; print its path, aggregate digest and counts. Print per-file hashes only for proposed removal candidates, not a full ledger of unchanged protected files.

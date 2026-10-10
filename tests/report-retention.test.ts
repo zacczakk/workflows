@@ -36,6 +36,7 @@ test("report maintenance contract protects source knowledge and requires recover
     "Memory/system/skill-sync-YYYY-MM-DD.md", "session notes", "backlog", "GitHub audit",
     "external references", "tags: []", "unreadable", "No candidates",
     "perform no global vault scan", "Unrelated iCloud placeholders cannot block a zero-move run",
+    "2026-03-10-b.md",
   ]) expect(prompt).toContain(rule);
 });
 
