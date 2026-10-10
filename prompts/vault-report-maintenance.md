@@ -14,6 +14,8 @@ Only dated operational report leaves in:
 
 Match whole filenames and confirm report content/frontmatter. Legacy reference-typed files are eligible only when their bodies are clearly run reports. Keep unknown types, malformed dates, symlinks and non-report content. Report collections are navigation, not eligible leaves.
 
+**No candidates fast path:** when inventory finds no eligible old reports or obsolete report collections, read only the rolling records and necessary navigation. Preserve open findings unchanged; skip report-body comparisons and removal-reference scans. Verify inventory/navigation and protected note hashes, refresh both output summaries, and finish. Do not reread recent daily bodies or scan workflow state/long-term archives just to prove a no-op.
+
 Only the two grooming families allow single-letter suffixes. Skill date-range files such as skill-sync-2026-03-19-24.md are navigation collections, never daily report candidates.
 
 ## Retention and content gate
