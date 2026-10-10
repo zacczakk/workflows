@@ -87,6 +87,10 @@ async function runWorkflow(cfg: Config, root: string, name: string, wf: Workflow
     if (code === 0) {
       for (const path of outputs) {
         if (!existsSync(path) || statSync(path).mtimeMs < started || statSync(path).size === 0) throw new Error(`Required output missing or stale: ${path}`);
+        if (name === "vault-report-maintenance") {
+          const frontmatter = readFileSync(path, "utf8").split(/^---\r?$/m)[1];
+          if (!frontmatter || !/^status: complete\r?$/m.test(frontmatter)) throw new Error(`Report maintenance incomplete: ${path}`);
+        }
       }
       if (selection) {
         const manifest = resolve(directory, "backlog-completion.json");

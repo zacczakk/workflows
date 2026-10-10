@@ -15,9 +15,10 @@ Nightly runs sequentially:
 5. `vault-consolidation` — synthesis and archive-gated cleanup
 6. `vault-grooming` — final link/frontmatter repair
 7. `vault-backlog-triage` — independent per-item evaluations
-8. `vault-knowledge-distillation` — slim `MEMORY.md`
-9. `vault-retrieval-practice` — weekly factual verification
-10. `vault-embeddings-final` — refresh after successful producers
+8. `vault-retrieval-practice` — weekly factual verification
+9. `vault-report-maintenance` — weekly report retention and navigation cleanup
+10. `vault-knowledge-distillation` — slim `MEMORY.md`
+11. `vault-embeddings-final` — refresh after successful producers
 
 `sessions-export` runs every 30 minutes. `log-maintenance` rotates logs above 10 MiB at 00:55, retaining five archives.
 
@@ -28,7 +29,7 @@ All top-level agents use GitHub Copilot:
 | Workflow | Model |
 |---|---|
 | Inbox, session processing, backlog triage, distillation | `github-copilot/gpt-6.1-sol#medium` |
-| Grooming, consolidation, retrieval | `github-copilot/gpt-6.1-sol#high` |
+| Grooming, consolidation, retrieval, report maintenance | `github-copilot/gpt-6.1-sol#high` |
 
 Grooming can use the configured vault-ops subagent for bounded repairs. QMD models remain local: EmbeddingGemma 300M, Qwen3 reranker 0.6B, and query expansion 1.7B.
 
@@ -40,6 +41,7 @@ Grooming can use the configured vault-ops subagent for bounded repairs. QMD mode
 - **Exact session checks:** `wf` requires OpenCode V2, creates a known session ID and location, then checks that session's final API outcome. Missing or failed outcomes fail closed. A completed session can recover a nonzero client exit, provided required outputs were actually refreshed.
 - **Required outputs:** configured `outputs` must exist, be nonempty, and have changed during the run. `{date}` uses the run's local start date; all agents receive the same date.
 - **Dependencies:** `depends_on` skips downstream work after a failed prerequisite. Final embeddings run only after successful vault producers; weekly cadence skips count as satisfied prerequisites.
+- **Report retention:** weekly maintenance retains 30 calendar days plus the newest report per family. Scope: Knowledge grooming and Memory grooming/consolidation/retrieval/daily skill-sync logs. Up to ten old candidates per family are reviewed per run; extras are deferred. Useful unique findings go into one rolling `report-retention.md` per vault before exact paths move to Trash. Unreadable, changed, uncertain or externally referenced sources stay. Report indexes are repaired and report tags cleared; skill reports share one fanout-exempt index. Both rolling records must declare `status: complete`; partial cleanup fails, blocks final indexing, and leaves the independent `MEMORY.md` refresh available. Backlog evaluations, the GitHub audit baseline, session notes, durable knowledge and session-archive gates stay protected.
 - **Recovery:** atomic state retains `lastSuccess` independently of ten-entry history. Per-schedule and per-workflow locks prevent overlapping runs. Timeouts stop the client and interrupt its exact agent session. Failures appear in logs, state, and macOS notifications.
 
 ## CLI
@@ -49,6 +51,7 @@ wf list
 wf status
 wf run nightly
 wf run vault-grooming
+wf run vault-report-maintenance
 wf logs vault-grooming
 wf install
 wf uninstall

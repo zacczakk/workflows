@@ -24,6 +24,7 @@ List `~/Vaults/Memory/` recursively with filesystem tools.
 - `IDENTITY.md` (agent persona config, auto-injected)
 - `SOUL.md` (agent persona config, auto-injected)
 - `system/grooming-reports/*` (operational logs, not knowledge)
+- Dated consolidation, retrieval and skill-sync reports and their report indexes (operational history). The rolling `system/report-retention.md` may contain useful unresolved findings; consult its summary only when relevant.
 
 ### 2. Read Memory vault notes
 

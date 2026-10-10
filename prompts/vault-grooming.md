@@ -189,6 +189,8 @@ For each over-cap parent:
 
 **Delegation:** If more than 2 parents exceed the cap, delegate each parent's clustering to a subagent. Include the parent's content and its children's titles/summaries in the subagent prompt.
 
+**Operational report navigation:** Daily Memory skill-sync reports use system/skill-sync-reports.md directly; this dated-report index is fanout-exempt. Set operational report/index tags to `tags: []`, preserving durable domain tags. Do not create month/range skill-sync collections. Keep rolling report-retention.md findings intact; weekly vault-report-maintenance owns historical report pruning.
+
 ### Phase 9: Write grooming reports
 
 Write a separate report to each vault.

@@ -20,8 +20,9 @@ workflows = [
   "vault-consolidation",
   "vault-grooming",
   "vault-backlog-triage",
-  "vault-knowledge-distillation",
   "vault-retrieval-practice",
+  "vault-report-maintenance",
+  "vault-knowledge-distillation",
   "vault-embeddings-final",
 ]
 
@@ -54,7 +55,7 @@ type = "script"
 script = "scripts/vault-embeddings.ts"
 description = "Refresh search after successful vault changes"
 timeout = 1800
-depends_on = ["vault-inbox-processing", "vault-session-processing", "vault-consolidation", "vault-grooming", "vault-backlog-triage", "vault-knowledge-distillation", "vault-retrieval-practice"]
+depends_on = ["vault-inbox-processing", "vault-session-processing", "vault-consolidation", "vault-grooming", "vault-backlog-triage", "vault-knowledge-distillation", "vault-retrieval-practice", "vault-report-maintenance"]
 
 [workflows.vault-inbox-processing]
 depends_on = ["vault-embeddings"]
@@ -113,6 +114,16 @@ outputs = ["~/Vaults/Memory/system/retrieval-reports/{date}.md"]
 description = "Spot-check Memory vault notes for accuracy against current reality"
 timeout = 1800
 cadence_days = 7
+
+[workflows.vault-report-maintenance]
+type = "agent"
+prompt = "prompts/vault-report-maintenance.md"
+model = "github-copilot/gpt-6.1-sol#high"
+description = "Keep thirty days of operational reports; preserve findings and clean navigation"
+timeout = 900
+cadence_days = 7
+depends_on = ["skill-sync", "vault-consolidation", "vault-grooming", "vault-backlog-triage", "vault-retrieval-practice"]
+outputs = ["~/Vaults/Knowledge/00_system/grooming-reports/report-retention.md", "~/Vaults/Memory/system/report-retention.md"]
 
 [workflows.sessions-export]
 type = "script"
