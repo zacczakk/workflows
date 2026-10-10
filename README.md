@@ -22,6 +22,8 @@ Nightly runs sequentially:
 
 `sessions-export` runs every 30 minutes. `log-maintenance` rotates logs above 10 MiB at 00:55, retaining five archives.
 
+Report maintenance's zero-candidate fast path verifies report inventories, navigation and retained report hashes only. Unrelated iCloud placeholders cannot block a zero-move run; proposed removals still require findings preservation and visible vault-reference checks. Hidden planning/app files, exported media and workflow state stay outside those reference scans.
+
 ### Models
 
 All top-level agents use GitHub Copilot:

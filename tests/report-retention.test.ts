@@ -35,6 +35,7 @@ test("report maintenance contract protects source knowledge and requires recover
     "Memory/system/consolidation-reports/", "Memory/system/retrieval-reports/",
     "Memory/system/skill-sync-YYYY-MM-DD.md", "session notes", "backlog", "GitHub audit",
     "external references", "tags: []", "unreadable", "No candidates",
+    "perform no global vault scan", "Unrelated iCloud placeholders cannot block a zero-move run",
   ]) expect(prompt).toContain(rule);
 });
 
