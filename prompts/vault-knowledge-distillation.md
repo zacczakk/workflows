@@ -1,12 +1,12 @@
 # Knowledge Distillation
 
-Distill the Memory vault and Knowledge vault docs into two files: `MEMORY.md` (system/project context) and `USER.md` (user preferences/identity). These are the entry points for any agent working in this environment.
+Distill the Memory vault and Knowledge vault docs into `MEMORY.md` (system/project context), the marked blocks of `USER.md` (Phil's setup, preferences and focus) and the marked block of `SOUL.md` (agent conduct lessons). These files are injected into every agent session.
 
 ## Purpose
 
-An agent reads `MEMORY.md` and `USER.md` first, then searches deeper via QMD or filesystem search. The goal is: after reading these two files, the agent immediately knows who the user is, what they're working on, how things are structured, and where to find details.
+An agent reads `MEMORY.md`, `USER.md` and `SOUL.md` first, then searches deeper via QMD or filesystem search. The goal is: after reading these files, the agent immediately knows who the user is, what they're working on, how things are structured, and where to find details.
 
-**Critical: `MEMORY.md` is injected into every agent session at startup.** Every token in this file costs context window budget on every single interaction. Be ruthlessly concise. If a line doesn't change how an agent behaves, cut it.
+**Critical: `MEMORY.md`, `USER.md` and `SOUL.md` are injected into every agent session and subagent at startup.** Every token in these files costs context window budget on every single interaction. Be ruthlessly concise. If a line doesn't change how an agent behaves, cut it.
 
 ## Context
 
@@ -20,9 +20,8 @@ List `~/Vaults/Memory/` recursively with filesystem tools.
 
 **Skip these files:**
 - `MEMORY.md` itself (self-referential)
-- `USER.md` (agent-injected, user-curated)
-- `IDENTITY.md` (agent persona config, auto-injected)
-- `SOUL.md` (agent persona config, auto-injected)
+- `USER.md`, `SOUL.md` (written in steps 5 and 6, not distilled as sources)
+- `IDENTITY.md` (immutable, Phil-owned)
 - `system/grooming-reports/*` (operational logs, not knowledge)
 - Dated consolidation, retrieval and skill-sync reports and their report indexes (operational history). The rolling `system/report-retention.md` may contain useful unresolved findings; consult its summary only when relevant.
 
@@ -67,19 +66,40 @@ For each folder parent, write:
 
 Use the `type` frontmatter field and folder location as hints for categorization.
 
-### 5. Build USER.md
+### 5. Maintain USER.md blocks
 
-If `USER.md` already exists at `~/Vaults/Memory/USER.md`, read it first. Preserve any hand-written content. Only append or update sections that have new information from vault notes — never remove content the user added manually.
+Read `~/Vaults/Memory/USER.md`. Content outside `<!-- auto:NAME:start -->` / `<!-- auto:NAME:end -->` markers is Phil-owned: never edit it. Rewrite each marked block in place from current vault evidence. Replace stale lines; never append dated sections or "supersedes" lines.
 
-If `USER.md` does not exist yet, create it from what can be inferred from vault notes. Keep it minimal — the user will bootstrap and curate it.
+| Block | Holds | Cap |
+|-------|-------|-----|
+| `auto:setup` | Current stack, runtimes, tool choices and environment facts Phil relies on across projects. Current versions only. | 12 bullets |
+| `auto:preferences` | Phil's durable cross-project choices about workflow, deliverables and tools. | 8 bullets |
+| `auto:focus` | What Phil is working on now, one line per workstream, newest evidence wins. No build numbers, PASS counts or version strings. | 6 bullets |
 
-### 6. Write files
+Sources: `projects/` notes, latest `sessions/` decision notes, `Knowledge/03_active/` project indexes and `06_docs/`. Exclusions:
+- Rules already stated in `~/.config/opencode/AGENTS.md`, `SOUL.md` or `IDENTITY.md`.
+- Repo- or project-scoped rules and status (they stay in that repo's AGENTS.md or its Memory project note).
+- Anything from notes marked confidential or with restricted-handling instructions.
 
-Write both files directly to the filesystem:
+If a marker pair is missing, leave the file unchanged and report it. Update frontmatter `updated:` only when a block changed.
+
+### 6. Maintain SOUL.md learned preferences
+
+Read `~/Vaults/Memory/SOUL.md`. Only the `<!-- auto:learned-preferences:start -->` / `<!-- auto:learned-preferences:end -->` block is writable. Sources: session notes created since SOUL's `updated:` date whose type is `decision`, `discovery` or `dead-end`, prioritizing notes tagged `agent-conduct`. A lesson qualifies when Phil corrected agent behavior or set a working rule for how agents should operate with him, and it applies beyond one repo.
+
+- Add qualifying lessons as one-line imperative rules; merge with near-duplicates instead of adding.
+- Drop lessons now stated in `~/.config/opencode/AGENTS.md`, `USER.md` or `IDENTITY.md`.
+- Cap 10 bullets; when full, merge or drop the least general rule.
+- When the block changes: bump `version:` by 1 and set `updated:` to the run date. Otherwise leave the file untouched.
+
+### 7. Check budgets and write
+
+Write directly to the filesystem:
 - `~/Vaults/Memory/MEMORY.md`
-- `~/Vaults/Memory/USER.md`
+- `~/Vaults/Memory/USER.md` (blocks only)
+- `~/Vaults/Memory/SOUL.md` (block only, when changed)
 
-Write directly to the filesystem.
+Then run `wc -w ~/Vaults/Memory/USER.md ~/Vaults/Memory/SOUL.md ~/Vaults/Memory/MEMORY.md`. Budgets: USER ≤ 700 words, SOUL ≤ 500, MEMORY ≤ 250. Over budget: tighten the auto blocks and rewrite. If Phil-owned text alone exceeds a budget, report it instead of editing it.
 
 ## MEMORY.md Format
 
@@ -142,26 +162,6 @@ Use the note's content and frontmatter `type` to decide which folder parent it s
 
 Knowledge vault docs from `06_docs/` contribute to the prose summaries (especially tools/system) but are NOT listed as individual entries.
 
-## USER.md Format
-
-```markdown
-# USER
-
-## Identity
-- Name, handle, key context
-
-## Preferences
-- Work style, communication preferences, tooling choices
-
-## Current Focus
-- What they're actively working on right now
-```
-
-This file is primarily user-curated. The distillation workflow only:
-- Creates it from inferred content if it doesn't exist yet
-- Appends new observations if vault notes reveal something not yet captured
-- Never removes or rewrites user-written content
-
 ## Rules
 
 - Telegraph style. Super condensed. Each section body is 1-2 lines of prose max.
@@ -169,9 +169,9 @@ This file is primarily user-curated. The distillation workflow only:
 - Section headers use `## [[folder-parent]]` — a wikilink to the folder parent note. No other wikilinks anywhere in the file body.
 - Body text is prose, not bullet lists. Describe what the section contains and why it matters.
 - This file is **regenerated on every run** — it overwrites the previous version. Not hand-curated.
-- `USER.md` is the opposite: primarily hand-curated. Only append, never rewrite.
+- `USER.md` and `SOUL.md`: rewrite marked blocks in place only; text outside markers is never edited.
 - Write via filesystem (`~/Vaults/Memory/...`), not obsidian CLI. The CLI eats backticks in content.
-- Do NOT modify any source notes. This workflow is read-only except for writing MEMORY.md and USER.md.
+- Do NOT modify any source notes. This workflow is read-only except for writing MEMORY.md and the marked blocks of USER.md and SOUL.md.
 - Preserve the `[[wikilink]]` format exactly — Obsidian resolves these by filename.
 - Omit empty sections. If there are no sessions worth listing, don't include the Sessions header.
 - **Validate before writing.** Before writing MEMORY.md, verify every `[[wikilink]]` resolves to an existing note in the vault. If a note doesn't exist, convert to plain text.

@@ -17,6 +17,23 @@ function outputPath(root: string, path: string, date: string): string {
   return resolve(root, path.replace(/^~\//, `${homedir()}/`).replaceAll("{date}", date));
 }
 
+const INJECTED_FILES = [
+  { path: "Vaults/Memory/USER.md", maxWords: 700, blocks: ["setup", "preferences", "focus"] },
+  { path: "Vaults/Memory/SOUL.md", maxWords: 500, blocks: ["learned-preferences"] },
+  { path: "Vaults/Memory/MEMORY.md", maxWords: 250, blocks: [] },
+];
+
+function checkInjectedFiles(): void {
+  for (const { path, maxWords, blocks } of INJECTED_FILES) {
+    const text = readFileSync(resolve(homedir(), path), "utf8");
+    const words = text.split(/\s+/).filter(Boolean).length;
+    if (words > maxWords) throw new Error(`${path} over word budget: ${words}/${maxWords}`);
+    for (const block of blocks) {
+      if (!text.includes(`<!-- auto:${block}:start -->`) || !text.includes(`<!-- auto:${block}:end -->`)) throw new Error(`${path} missing auto:${block} markers`);
+    }
+  }
+}
+
 function archiveHealthy(): boolean {
   try {
     const value: unknown = JSON.parse(readFileSync(resolve(homedir(), ".local/share/sessions/archive-health.json"), "utf8"));
@@ -92,6 +109,7 @@ async function runWorkflow(cfg: Config, root: string, name: string, wf: Workflow
           if (!frontmatter || !/^retention_status: complete\r?$/m.test(frontmatter)) throw new Error(`Report maintenance incomplete: ${path}`);
         }
       }
+      if (name === "vault-knowledge-distillation") checkInjectedFiles();
       if (selection) {
         const manifest = resolve(directory, "backlog-completion.json");
         if (!existsSync(manifest) || statSync(manifest).mtimeMs < started) throw new Error("Backlog completion manifest missing or stale");

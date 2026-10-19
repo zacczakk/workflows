@@ -94,7 +94,7 @@ type = "agent"
 prompt = "prompts/vault-knowledge-distillation.md"
 model = "github-copilot/gpt-6.1-sol#medium"
 outputs = ["~/Vaults/Memory/MEMORY.md"]
-description = "Distill Memory vault into condensed MEMORY.md"
+description = "Distill MEMORY.md and maintain USER.md/SOUL.md auto blocks"
 timeout = 5400
 
 [workflows.vault-consolidation]
