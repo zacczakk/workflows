@@ -42,7 +42,7 @@ rg -l '#(try|personal)' ~/Vaults/Knowledge/02_backlog/ > /tmp/backlog_tagged.txt
 
 From these outputs, compute:
 - **Broken wikilinks**: links whose target doesn't match any filename (minus extension) in either vault.
-- **Orphaned files**: files with zero incoming links from any other file (excluding `Home.md`, `00_system/`, `MEMORY.md`, `IDENTITY.md`, `SOUL.md`, `USER.md`).
+- **Orphaned files**: files with zero incoming links from any other file (excluding `Home.md`, `00_system/`, `MEMORY.md`, `IDENTITY.md`, `SOUL.md`, `USER.md`, `STYLE.md`).
 - **Missing parent links**: files without a `parent:` frontmatter field (or `parent:` not matching expected folder index/parent).
 
 ### Phase 2: Fix broken wikilinks (targeted reads)
@@ -80,7 +80,7 @@ Use `rg` to check frontmatter fields directly (avoids filesystem permission issu
 ```bash
 # Check for missing required fields across all Memory vault notes
 rg -l --files-without-match '^type:' ~/Vaults/Memory/ --glob '*.md' --glob '!.obsidian/**' 2>/dev/null
-rg -l --files-without-match '^parent:' ~/Vaults/Memory/ --glob '*.md' --glob '!.obsidian/**' --glob '!MEMORY.md' --glob '!IDENTITY.md' --glob '!SOUL.md' --glob '!USER.md' 2>/dev/null
+rg -l --files-without-match '^parent:' ~/Vaults/Memory/ --glob '*.md' --glob '!.obsidian/**' --glob '!MEMORY.md' --glob '!IDENTITY.md' --glob '!SOUL.md' --glob '!USER.md' --glob '!STYLE.md' 2>/dev/null
 rg -l --files-without-match '^summary:' ~/Vaults/Memory/ --glob '*.md' --glob '!.obsidian/**' 2>/dev/null
 rg -l --files-without-match '^tags:' ~/Vaults/Memory/ --glob '*.md' --glob '!.obsidian/**' 2>/dev/null
 rg -l --files-without-match '^created:' ~/Vaults/Memory/ --glob '*.md' --glob '!.obsidian/**' 2>/dev/null
@@ -93,7 +93,7 @@ For files with missing required fields, read them directly to understand content
 
 Scan for and fix:
 - Missing `type`, `tags`, or `created` fields.
-- Missing or incorrect `parent:` field — must point to the folder parent or a same-folder collection. Root files (`MEMORY.md`, `IDENTITY.md`, `SOUL.md`, `USER.md`) are exempt from `parent:`.
+- Missing or incorrect `parent:` field — must point to the folder parent or a same-folder collection. Root files (`MEMORY.md`, `IDENTITY.md`, `SOUL.md`, `USER.md`, `STYLE.md`) are exempt from `parent:`.
 - Missing `summary` field — read the note body directly and write a 15-25 word plain-text summary into frontmatter. No wikilinks, no markdown in the summary.
 - Missing `consolidated` field on session notes.
 

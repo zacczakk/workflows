@@ -41,7 +41,7 @@ Grooming filenames match `^\d{4}-\d{2}-\d{2}(?:-[a-z])?\.md$`; the historical su
 
 ## Protected content
 
-Keep all session notes, projects, patterns, tools, other durable knowledge, original transcripts/archives, Knowledge backlog reports/evaluations and the GitHub audit baseline. Tags alone never authorize removal. Do not modify MEMORY.md, USER.md, SOUL.md, repositories or workflow state. Do not run other workflows or exports; the runner owns final indexing.
+Keep all session notes, projects, patterns, tools, other durable knowledge, original transcripts/archives, Knowledge backlog reports/evaluations and the GitHub audit baseline. Tags alone never authorize removal. Do not modify MEMORY.md, USER.md, SOUL.md, STYLE.md, repositories or workflow state. Do not run other workflows or exports; the runner owns final indexing.
 
 ## Completion
 

@@ -22,6 +22,7 @@ List `~/Vaults/Memory/` recursively with filesystem tools.
 - `MEMORY.md` itself (self-referential)
 - `USER.md`, `SOUL.md` (written in steps 5 and 6, not distilled as sources)
 - `IDENTITY.md` (immutable, Phil-owned)
+- `STYLE.md` (Phil's writing voice; Phil-owned, agents append Corrections only; never edit)
 - `system/grooming-reports/*` (operational logs, not knowledge)
 - Dated consolidation, retrieval and skill-sync reports and their report indexes (operational history). The rolling `system/report-retention.md` may contain useful unresolved findings; consult its summary only when relevant.
 
@@ -99,7 +100,7 @@ Write directly to the filesystem:
 - `~/Vaults/Memory/USER.md` (blocks only)
 - `~/Vaults/Memory/SOUL.md` (block only, when changed)
 
-Then run `wc -w ~/Vaults/Memory/USER.md ~/Vaults/Memory/SOUL.md ~/Vaults/Memory/MEMORY.md`. Budgets: USER ≤ 700 words, SOUL ≤ 500, MEMORY ≤ 250. Over budget: tighten the auto blocks and rewrite. If Phil-owned text alone exceeds a budget, report it instead of editing it.
+Then run `wc -w ~/Vaults/Memory/USER.md ~/Vaults/Memory/SOUL.md ~/Vaults/Memory/MEMORY.md ~/Vaults/Memory/STYLE.md`. Budgets: USER ≤ 700 words, SOUL ≤ 500, MEMORY ≤ 250, STYLE ≤ 1200. STYLE over budget: report it for Phil; never edit STYLE. Over budget: tighten the auto blocks and rewrite. If Phil-owned text alone exceeds a budget, report it instead of editing it.
 
 ## MEMORY.md Format
 

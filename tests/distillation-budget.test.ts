@@ -40,6 +40,7 @@ outputs = ["MEMORY.md"]
       writeFileSync(join(memory, "USER.md"), user);
       writeFileSync(join(memory, "SOUL.md"), soul);
       writeFileSync(join(memory, "MEMORY.md"), "hub");
+      writeFileSync(join(memory, "STYLE.md"), "style");
     };
     const run = () => Bun.spawnSync(["bun", join(root, "src/wf.ts"), "run", "vault-knowledge-distillation"], {
       cwd: root, env: { ...process.env, HOME: root, WF_NOTIFICATIONS: "0" },
