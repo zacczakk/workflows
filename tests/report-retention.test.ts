@@ -88,3 +88,50 @@ outputs = ["consumer.md"]
     expect(Bun.spawnSync(["trash", root]).exitCode).toBe(0);
   }
 });
+
+test("a workflow not yet due skips cleanly even when its dependency failed", () => {
+  const root = mkdtempSync(join(tmpdir(), "wf-cadence-first-"));
+  try {
+    cpSync("src", join(root, "src"), { recursive: true });
+    writeFileSync(join(root, "ok.ts"), `await Bun.write("weekly.md", "done");`);
+    writeFileSync(join(root, "fail.ts"), "process.exit(1);");
+    writeFileSync(join(root, "consumer.ts"), `await Bun.write("consumer.md", "indexed");`);
+    const config = (dependency: string) => `
+[meta]
+label_prefix = "test.cadence"
+log_dir = "logs"
+plist_dir = "plists"
+state_dir = "state"
+[schedules.nightly]
+interval = 60
+enabled = true
+workflows = ["upstream", "weekly", "consumer"]
+[workflows.upstream]
+type = "script"
+script = "${dependency}"
+description = "upstream fetch"
+[workflows.weekly]
+type = "script"
+script = "ok.ts"
+description = "weekly job"
+cadence_days = 7
+depends_on = ["upstream"]
+[workflows.consumer]
+type = "script"
+script = "consumer.ts"
+description = "final indexing"
+depends_on = ["weekly"]
+`;
+    const run = () => Bun.spawnSync(["bun", join(root, "src/wf.ts"), "run", "nightly"], {
+      cwd: root, env: { ...process.env, WF_NOTIFICATIONS: "0" },
+    });
+    writeFileSync(join(root, "workflows.toml"), config("ok.ts"));
+    expect(run().exitCode).toBe(0);
+    writeFileSync(join(root, "workflows.toml"), config("fail.ts"));
+    const next = run();
+    expect(next.stdout.toString()).toContain("skip weekly: cadence 7d");
+    expect(next.stdout.toString()).toContain("ok consumer");
+  } finally {
+    expect(Bun.spawnSync(["trash", root]).exitCode).toBe(0);
+  }
+});

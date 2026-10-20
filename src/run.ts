@@ -21,6 +21,7 @@ const INJECTED_FILES = [
   { path: "Vaults/Memory/USER.md", maxWords: 700, blocks: ["setup", "preferences", "focus"] },
   { path: "Vaults/Memory/SOUL.md", maxWords: 500, blocks: ["learned-preferences"] },
   { path: "Vaults/Memory/MEMORY.md", maxWords: 250, blocks: [] },
+  { path: "Vaults/Memory/STYLE.md", maxWords: 1200, blocks: [] },
 ];
 
 function checkInjectedFiles(): void {
@@ -171,14 +172,14 @@ export async function run(cfg: Config, root: string, name: string): Promise<numb
     for (const workflow of schedule?.workflows ?? [name]) {
       if (stopped) { failed++; break; }
       const wf = cfg.workflows[workflow];
-      if (schedule && wf.depends_on?.some((dependency) => outcomes.get(dependency) !== 0)) {
-        console.log(`skip ${workflow}: dependency failed`);
-        outcomes.set(workflow, 1); failed++; continue;
-      }
       const last = lastSuccessDate(directory, workflow);
       if (schedule && wf.cadence_days && last && Date.now() - last.getTime() < wf.cadence_days * 86_400_000) {
         console.log(`skip ${workflow}: cadence ${wf.cadence_days}d`);
         outcomes.set(workflow, 0); skipped++; continue;
+      }
+      if (schedule && wf.depends_on?.some((dependency) => outcomes.get(dependency) !== 0)) {
+        console.log(`skip ${workflow}: dependency failed`);
+        outcomes.set(workflow, 1); failed++; continue;
       }
       const code = await runWorkflow(cfg, root, workflow, wf, date);
       outcomes.set(workflow, code);
