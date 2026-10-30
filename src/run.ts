@@ -22,19 +22,42 @@ const INJECTED_FILES = [
   { path: "Vaults/Memory/USER.md", maxWords: 700, blocks: ["setup", "preferences", "focus"] },
   { path: "Vaults/Memory/SOUL.md", maxWords: 500, blocks: ["learned-preferences"] },
   { path: "Vaults/Memory/MEMORY.md", maxWords: 250, blocks: [] },
-  // Phil-owned: distillation may not edit STYLE.md, so its budget only warns.
-  { path: "Vaults/Memory/STYLE.md", maxWords: 1200, blocks: [], warnOnly: true },
+  { path: "Vaults/Memory/STYLE.md", maxWords: 1200, blocks: [] },
 ];
 
+const STYLE_PATH = "Vaults/Memory/STYLE.md";
+const STYLE_ARCHIVE_PATH = "Vaults/Memory/system/style-archive.md";
+
+function readVaultFile(path: string): string {
+  const file = resolve(homedir(), path);
+  return existsSync(file) ? readFileSync(file, "utf8") : "";
+}
+
+function snapshotStyle(): { style: string; archive: string } {
+  return { style: readVaultFile(STYLE_PATH), archive: readVaultFile(STYLE_ARCHIVE_PATH) };
+}
+
+// Distillation may fold and trim STYLE.md, but every quote, correction entry and
+// archive line must survive in STYLE.md or the append-only archive.
+function checkStyleKept(before: { style: string; archive: string }): void {
+  const after = snapshotStyle();
+  const kept = `${after.style}\n${after.archive}`;
+  const quotes = before.style.match(/"[^"\n]+"/g) ?? [];
+  const corrections = before.style.split("\n").filter((line) => /^- \d{4}-\d{2}-\d{2}:/.test(line)).map((line) => line.slice(2));
+  const archiveLines = before.archive.split("\n").filter((line) => line.trim() !== "");
+  const lost = [
+    ...quotes.filter((quote) => !kept.includes(quote)),
+    ...corrections.filter((entry) => !kept.includes(entry.replace(/\s+$/, ""))),
+    ...archiveLines.filter((line) => !after.archive.includes(line)),
+  ];
+  if (lost.length > 0) throw new Error(`STYLE information lost: ${lost.slice(0, 3).join(" | ")}`);
+}
+
 function checkInjectedFiles(): void {
-  for (const { path, maxWords, blocks, warnOnly } of INJECTED_FILES) {
+  for (const { path, maxWords, blocks } of INJECTED_FILES) {
     const text = readFileSync(resolve(homedir(), path), "utf8");
     const words = text.split(/\s+/).filter(Boolean).length;
-    if (words > maxWords) {
-      const message = `${path} over word budget: ${words}/${maxWords}`;
-      if (!warnOnly) throw new Error(message);
-      console.warn(`${message}; Phil-owned, left unchanged`);
-    }
+    if (words > maxWords) throw new Error(`${path} over word budget: ${words}/${maxWords}`);
     for (const block of blocks) {
       if (!text.includes(`<!-- auto:${block}:start -->`) || !text.includes(`<!-- auto:${block}:end -->`)) throw new Error(`${path} missing auto:${block} markers`);
     }
@@ -77,6 +100,7 @@ async function runWorkflow(cfg: Config, root: string, name: string, wf: Workflow
   let interrupted = false;
   let children: number[] = [];
   const outputs = (wf.outputs ?? []).map((path) => outputPath(root, path, date));
+  const styleBefore = name === "vault-knowledge-distillation" ? snapshotStyle() : undefined;
   const terminate = () => {
     if (!proc) return;
     children = descendants(proc.pid);
@@ -129,6 +153,7 @@ async function runWorkflow(cfg: Config, root: string, name: string, wf: Workflow
           if (!frontmatter || !/^retention_status: complete\r?$/m.test(frontmatter)) throw new Error(`Report maintenance incomplete: ${path}`);
         }
       }
+      if (styleBefore) checkStyleKept(styleBefore);
       if (name === "vault-knowledge-distillation") checkInjectedFiles();
       if (selection) {
         const manifest = resolve(directory, "backlog-completion.json");

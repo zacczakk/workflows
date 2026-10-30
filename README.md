@@ -17,7 +17,7 @@ Nightly runs sequentially:
 7. `vault-backlog-triage` — independent per-item evaluations
 8. `vault-retrieval-practice` — weekly factual verification
 9. `vault-report-maintenance` — weekly report retention and navigation cleanup
-10. `vault-knowledge-distillation` — slim `MEMORY.md`; rewrites marked blocks in `USER.md` and `SOUL.md`; runner fails on `USER.md`, `SOUL.md` or `MEMORY.md` word-budget or marker loss; Phil-owned `STYLE.md` over budget only warns
+10. `vault-knowledge-distillation` — slim `MEMORY.md`; rewrites marked blocks in `USER.md` and `SOUL.md`; folds `STYLE.md` corrections into rules and moves evidence to the append-only `system/style-archive.md`; runner fails on word-budget or marker loss and on any STYLE quote, correction or archive line that disappears
 11. `vault-embeddings-final` — refresh after successful producers
 
 `sessions-export` runs every 30 minutes. `log-maintenance` rotates logs above 10 MiB at 00:55, retaining five archives.

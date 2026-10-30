@@ -22,7 +22,8 @@ List `~/Vaults/Memory/` recursively with filesystem tools.
 - `MEMORY.md` itself (self-referential)
 - `USER.md`, `SOUL.md` (written in steps 5 and 6, not distilled as sources)
 - `IDENTITY.md` (immutable, Phil-owned)
-- `STYLE.md` (Phil's writing voice; Phil-owned, agents append Corrections only; never edit)
+- `STYLE.md` (written in step 6b, not distilled as a source)
+- `system/style-archive.md` (append-only STYLE archive, written in step 6b)
 - `system/grooming-reports/*` (operational logs, not knowledge)
 - Dated consolidation, retrieval and skill-sync reports and their report indexes (operational history). The rolling `system/report-retention.md` may contain useful unresolved findings; consult its summary only when relevant.
 
@@ -93,14 +94,26 @@ Read `~/Vaults/Memory/SOUL.md`. Only the `<!-- auto:learned-preferences:start --
 - Cap 10 bullets; when full, merge or drop the least general rule.
 - When the block changes: bump `version:` by 1 and set `updated:` to the run date. Otherwise leave the file untouched.
 
+### 6b. Maintain STYLE.md
+
+Read `~/Vaults/Memory/STYLE.md` (Phil's writing voice) and `~/Vaults/Memory/system/style-archive.md`. STYLE is injected into every session, so keep it ≤ 1200 words without losing information.
+
+- Fold every dated entry under `## Corrections` into the section it belongs to as a short rule, merged with any near-duplicate rule. Keep one before/after example only when the rule is unclear without it.
+- Move each folded entry verbatim to the end of `## Corrections log` in the archive and append ` Folded into: {Section > Item}.`
+- Over 1200 words: shorten rule wording without changing meaning, then move the least essential extra examples to the end of `## Examples moved out of STYLE.md` as `- {run date}, {Section > Item}: "{quote}"`. Keep at least one example per rule.
+- Every quoted string and correction entry removed from STYLE must appear in the archive, character for character. Never delete or rewrite archive lines; append only. The runner fails the workflow on any loss.
+- Keep Phil's quoted wording, typos and contractions inside quotes exactly. Never invent rules or examples; add rules only from correction entries.
+- Leave `## Corrections` with its one-line intro so new entries have a home. When STYLE changes, set `updated:` to the run date.
+
 ### 7. Check budgets and write
 
 Write directly to the filesystem:
 - `~/Vaults/Memory/MEMORY.md`
 - `~/Vaults/Memory/USER.md` (blocks only)
 - `~/Vaults/Memory/SOUL.md` (block only, when changed)
+- `~/Vaults/Memory/STYLE.md` and `~/Vaults/Memory/system/style-archive.md` (step 6b, when changed)
 
-Then run `wc -w ~/Vaults/Memory/USER.md ~/Vaults/Memory/SOUL.md ~/Vaults/Memory/MEMORY.md ~/Vaults/Memory/STYLE.md`. Budgets: USER ≤ 700 words, SOUL ≤ 500, MEMORY ≤ 250, STYLE ≤ 1200. STYLE over budget: report it for Phil; never edit STYLE. Over budget: tighten the auto blocks and rewrite. If Phil-owned text alone exceeds a budget, report it instead of editing it.
+Then run `wc -w ~/Vaults/Memory/USER.md ~/Vaults/Memory/SOUL.md ~/Vaults/Memory/MEMORY.md ~/Vaults/Memory/STYLE.md`. Budgets: USER ≤ 700 words, SOUL ≤ 500, MEMORY ≤ 250, STYLE ≤ 1200. Over budget: tighten the auto blocks or apply step 6b to STYLE and rewrite. If Phil-owned text alone exceeds a budget, report it instead of editing it.
 
 ## MEMORY.md Format
 
@@ -172,7 +185,7 @@ Knowledge vault docs from `06_docs/` contribute to the prose summaries (especial
 - This file is **regenerated on every run** — it overwrites the previous version. Not hand-curated.
 - `USER.md` and `SOUL.md`: rewrite marked blocks in place only; text outside markers is never edited.
 - Write via filesystem (`~/Vaults/Memory/...`), not obsidian CLI. The CLI eats backticks in content.
-- Do NOT modify any source notes. This workflow is read-only except for writing MEMORY.md and the marked blocks of USER.md and SOUL.md.
+- Do NOT modify any source notes. This workflow is read-only except for writing MEMORY.md, the marked blocks of USER.md and SOUL.md, STYLE.md and the STYLE archive.
 - Preserve the `[[wikilink]]` format exactly — Obsidian resolves these by filename.
 - Omit empty sections. If there are no sessions worth listing, don't include the Sessions header.
 - **Validate before writing.** Before writing MEMORY.md, verify every `[[wikilink]]` resolves to an existing note in the vault. If a note doesn't exist, convert to plain text.
