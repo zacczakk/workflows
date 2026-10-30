@@ -1,4 +1,5 @@
 import { existsSync, readFileSync, statSync } from "node:fs";
+import { lookup } from "node:dns/promises";
 import { homedir } from "node:os";
 import { resolve } from "node:path";
 import type { Config, Workflow } from "./types";
@@ -21,14 +22,19 @@ const INJECTED_FILES = [
   { path: "Vaults/Memory/USER.md", maxWords: 700, blocks: ["setup", "preferences", "focus"] },
   { path: "Vaults/Memory/SOUL.md", maxWords: 500, blocks: ["learned-preferences"] },
   { path: "Vaults/Memory/MEMORY.md", maxWords: 250, blocks: [] },
-  { path: "Vaults/Memory/STYLE.md", maxWords: 1200, blocks: [] },
+  // Phil-owned: distillation may not edit STYLE.md, so its budget only warns.
+  { path: "Vaults/Memory/STYLE.md", maxWords: 1200, blocks: [], warnOnly: true },
 ];
 
 function checkInjectedFiles(): void {
-  for (const { path, maxWords, blocks } of INJECTED_FILES) {
+  for (const { path, maxWords, blocks, warnOnly } of INJECTED_FILES) {
     const text = readFileSync(resolve(homedir(), path), "utf8");
     const words = text.split(/\s+/).filter(Boolean).length;
-    if (words > maxWords) throw new Error(`${path} over word budget: ${words}/${maxWords}`);
+    if (words > maxWords) {
+      const message = `${path} over word budget: ${words}/${maxWords}`;
+      if (!warnOnly) throw new Error(message);
+      console.warn(`${message}; Phil-owned, left unchanged`);
+    }
     for (const block of blocks) {
       if (!text.includes(`<!-- auto:${block}:start -->`) || !text.includes(`<!-- auto:${block}:end -->`)) throw new Error(`${path} missing auto:${block} markers`);
     }
@@ -43,6 +49,19 @@ function archiveHealthy(): boolean {
     return typeof value.completedAt === "string" && Date.now() - Date.parse(value.completedAt) >= 0 && Date.now() - Date.parse(value.completedAt) < 86_400_000 && value.indexed === true && Array.isArray(sources) && ["opencode", "claude", "codex"].every((source) => sources.includes(source)) && Array.isArray(value.failures) && value.failures.length === 0;
   } catch {
     return false;
+  }
+}
+
+async function networkReady(host: string, waitSeconds: number): Promise<boolean> {
+  const deadline = Date.now() + waitSeconds * 1000;
+  for (;;) {
+    try {
+      await lookup(host);
+      return true;
+    } catch {
+      if (Date.now() >= deadline) return false;
+      await Bun.sleep(Math.min(15_000, Math.max(0, deadline - Date.now())));
+    }
   }
 }
 
@@ -169,6 +188,11 @@ export async function run(cfg: Config, root: string, name: string): Promise<numb
   const date = localDate();
   console.log(`\n${name} started ${new Date().toISOString()} (${Intl.DateTimeFormat().resolvedOptions().timeZone})`);
   try {
+    const needsNetwork = schedule?.workflows.some((workflow) => cfg.workflows[workflow].type === "agent");
+    if (needsNetwork && !(await networkReady(cfg.meta.network_host, cfg.meta.network_wait))) {
+      notifyFailure(name, `offline: ${cfg.meta.network_host} did not resolve within ${cfg.meta.network_wait}s; skipped all workflows`);
+      return 1;
+    }
     for (const workflow of schedule?.workflows ?? [name]) {
       if (stopped) { failed++; break; }
       const wf = cfg.workflows[workflow];

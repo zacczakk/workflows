@@ -13,7 +13,7 @@ test("distillation prompt keeps Phil-owned text and caps injected files", () => 
   expect(prompt).not.toContain("Only append");
 });
 
-test("distillation fails when injected files exceed budgets or lose markers", () => {
+test("distillation fails when agent-written files exceed budgets or lose markers; Phil-owned STYLE only warns", () => {
   const root = mkdtempSync(join(tmpdir(), "wf-distill-budget-"));
   try {
     cpSync("src", join(root, "src"), { recursive: true });
@@ -36,11 +36,11 @@ script = "distill.ts"
 description = "distillation"
 outputs = ["MEMORY.md"]
 `);
-    const write = (user: string, soul: string) => {
+    const write = (user: string, soul: string, style = "style") => {
       writeFileSync(join(memory, "USER.md"), user);
       writeFileSync(join(memory, "SOUL.md"), soul);
       writeFileSync(join(memory, "MEMORY.md"), "hub");
-      writeFileSync(join(memory, "STYLE.md"), "style");
+      writeFileSync(join(memory, "STYLE.md"), style);
     };
     const run = () => Bun.spawnSync(["bun", join(root, "src/wf.ts"), "run", "vault-knowledge-distillation"], {
       cwd: root, env: { ...process.env, HOME: root, WF_NOTIFICATIONS: "0" },
@@ -50,6 +50,11 @@ outputs = ["MEMORY.md"]
 
     write(user, soul);
     expect(run().exitCode).toBe(0);
+
+    write(user, soul, "word ".repeat(1300));
+    const style = run();
+    expect(style.exitCode).toBe(0);
+    expect(style.stderr.toString()).toContain("STYLE.md over word budget");
 
     write(`${user}\n${"word ".repeat(700)}`, soul);
     const over = run();

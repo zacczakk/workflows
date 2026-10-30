@@ -71,12 +71,23 @@ export function validateConfig(parsed: unknown): Config {
     }
   }
 
+  const networkHost = metaRaw.network_host ?? "api.github.com";
+  if (typeof networkHost !== "string" || networkHost === "") {
+    throw new ConfigError("meta", "'network_host' must be a non-empty string");
+  }
+  const networkWait = metaRaw.network_wait ?? 600;
+  if (typeof networkWait !== "number" || !Number.isInteger(networkWait) || networkWait < 0) {
+    throw new ConfigError("meta", "'network_wait' must be a non-negative integer (seconds)");
+  }
+
   const meta = {
     label_prefix: requireString(metaRaw, "label_prefix", "meta"),
     log_dir: requireString(metaRaw, "log_dir", "meta"),
     plist_dir: requireString(metaRaw, "plist_dir", "meta"),
     state_dir: requireString(metaRaw, "state_dir", "meta"),
     default_timeout: typeof defaultTimeout === "number" ? defaultTimeout : undefined,
+    network_host: networkHost,
+    network_wait: networkWait,
   };
 
   // ── Workflows ───────────────────────────────────────────────────

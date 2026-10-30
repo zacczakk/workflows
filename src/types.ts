@@ -57,6 +57,8 @@ export interface Config {
     plist_dir: string;
     state_dir: string;
     default_timeout?: number;
+    network_host: string;
+    network_wait: number;
   };
   workflows: Record<string, Workflow>;
   schedules: Record<string, ScheduleDef>;

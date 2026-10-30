@@ -17,7 +17,7 @@ Nightly runs sequentially:
 7. `vault-backlog-triage` — independent per-item evaluations
 8. `vault-retrieval-practice` — weekly factual verification
 9. `vault-report-maintenance` — weekly report retention and navigation cleanup
-10. `vault-knowledge-distillation` — slim `MEMORY.md`; rewrites marked blocks in `USER.md` and `SOUL.md`; runner fails on word-budget or marker loss
+10. `vault-knowledge-distillation` — slim `MEMORY.md`; rewrites marked blocks in `USER.md` and `SOUL.md`; runner fails on `USER.md`, `SOUL.md` or `MEMORY.md` word-budget or marker loss; Phil-owned `STYLE.md` over budget only warns
 11. `vault-embeddings-final` — refresh after successful producers
 
 `sessions-export` runs every 30 minutes. `log-maintenance` rotates logs above 10 MiB at 00:55, retaining five archives.
@@ -37,6 +37,7 @@ Grooming can use the configured vault-ops subagent for bounded repairs. QMD mode
 
 ## Safety and success
 
+- **Network gate:** a schedule with agent workflows first waits up to `meta.network_wait` seconds (default 600) for `meta.network_host` (default `api.github.com`) to resolve. Still offline: one notification, no workflow runs, exit 1.
 - **One sleep owner:** only nightly has `prevent_sleep = true`. Interval export and log maintenance leave sleep untouched. A watchdog is generated only for that owner, after the sum of configured timeouts plus 15 minutes. Reinstall removes obsolete non-owner watchdogs.
 - **Archive first:** consolidation is blocked unless `~/.local/share/sessions/archive-health.json` confirms `fullCoverage: true`, a complete all-source export, fresh indexes, no failures, and success within 24 hours. Date-filtered exports and malformed source records cannot authorize pruning. Session notes retain a two-day grace period after `consolidated_at`; unknown timestamps retain the notes.
 - **Independent triage:** `state/backlog-triage.json` tracks individual leaf mtimes. Grooming can change navigation without falsely marking items evaluated. Index/report notes are excluded. Priorities live in `Knowledge/00_system/backlog-triage-reports/`; `backlog.md` remains navigation. A fresh completion manifest must cover every selected path with a classification and reason, and both dated and latest reports must be refreshed before checkpointing.
