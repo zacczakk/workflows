@@ -23,6 +23,7 @@ workflows = [
   "vault-retrieval-practice",
   "vault-report-maintenance",
   "vault-knowledge-distillation",
+  "desktop-sync",
   "vault-embeddings-final",
 ]
 
@@ -42,6 +43,12 @@ workflows = ["log-maintenance"]
 type = "script"
 script = "scripts/skill-sync.ts"
 description = "Sync remote agent skills from upstream repos"
+timeout = 300
+
+[workflows.desktop-sync]
+type = "script"
+script = "scripts/desktop-sync.ts"
+description = "Sync Claude Desktop and Cowork instructions and skills from metronome and the Memory vault"
 timeout = 300
 
 [workflows.vault-embeddings]
