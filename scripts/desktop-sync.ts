@@ -1,5 +1,5 @@
 const proc = Bun.spawn(
-  [process.execPath, "/Users/m332023/Repos/zacczakk/metronome/src/cli/index.ts", "sync-desktop"],
+  [process.execPath, `${process.env.HOME}/Repos/zacczakk/metronome/src/cli/index.ts`, "sync-desktop"],
   { stdout: "inherit", stderr: "inherit" },
 );
 

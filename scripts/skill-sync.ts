@@ -1,12 +1,6 @@
-const NVM_DIR = `${process.env.HOME}/.nvm`;
-
 const proc = Bun.spawn(
-  ["bash", "-c", `. "${NVM_DIR}/nvm.sh" && npx tsx /Users/m332023/Repos/zacczakk/metronome/scripts/sync-upstream-skills.ts`],
-  {
-    stdout: "inherit",
-    stderr: "inherit",
-    env: { ...process.env, NVM_DIR },
-  },
+  [process.execPath, `${process.env.HOME}/Repos/zacczakk/metronome/scripts/sync-upstream-skills.ts`],
+  { stdout: "inherit", stderr: "inherit" },
 );
 
 const code = await proc.exited;
