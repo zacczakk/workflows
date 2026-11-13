@@ -65,7 +65,7 @@ Workflow log lookup resolves to its schedule and shows the last 200 lines from e
 
 ## Setup
 
-Requires macOS, Bun, OpenCode **V2**, nvm Node 22+, QMD, `sessions`, and vaults under `~/Vaults/Knowledge` and `~/Vaults/Memory`.
+Requires macOS, Bun, OpenCode **V2**, QMD, `sessions`, and vaults under `~/Vaults/Knowledge` and `~/Vaults/Memory`.
 
 Build with the existing installed Developer ID identity:
 
