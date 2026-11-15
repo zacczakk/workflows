@@ -149,16 +149,7 @@ async function runWorkflow(cfg: Config, root: string, name: string, wf: Workflow
       code = 0;
     }
     if (code === 0) {
-      try {
-        applyTrashRequests(trashFile, cfg.meta.trash_roots.map((path) => outputPath(root, path, date)));
-      } catch (error) {
-        if (name === "vault-report-maintenance") {
-          for (const path of outputs.filter((path) => existsSync(path))) {
-            writeFileSync(path, readFileSync(path, "utf8").replace(/^retention_status: complete(\r?)$/m, "retention_status: partial$1"));
-          }
-        }
-        throw error;
-      }
+      applyTrashRequests(trashFile, cfg.meta.trash_roots.map((path) => outputPath(root, path, date)));
       for (const path of outputs) {
         if (!existsSync(path) || statSync(path).mtimeMs < started || statSync(path).size === 0) throw new Error(`Required output missing or stale: ${path}`);
         if (name === "vault-report-maintenance") {
@@ -180,6 +171,11 @@ async function runWorkflow(cfg: Config, root: string, name: string, wf: Workflow
   } finally {
     process.off("SIGTERM", interrupt);
     process.off("SIGINT", interrupt);
+    if (code !== 0 && name === "vault-report-maintenance") {
+      for (const path of outputs.filter((path) => existsSync(path))) {
+        writeFileSync(path, readFileSync(path, "utf8").replace(/^retention_status: complete(\r?)$/m, "retention_status: partial$1"));
+      }
+    }
     try {
       writeState(directory, name, { startedAt, exitCode: code, durationMs: Date.now() - started, sessionId }, readState(directory, name));
     } finally { unlock(); }
