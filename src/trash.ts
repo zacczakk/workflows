@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { existsSync, lstatSync, readFileSync, realpathSync, unlinkSync } from "node:fs";
+import { existsSync, lstatSync, readFileSync, realpathSync, renameSync, unlinkSync } from "node:fs";
 import { sep } from "node:path";
 
 // Agents queue deletions as `shasum -a 256 <path>` lines; the runner moves them itself
@@ -17,9 +17,19 @@ export function applyTrashRequests(file: string, roots: string[]): string[] {
     if (createHash("sha256").update(readFileSync(path)).digest("hex") !== hash) throw new Error(`Trash request changed since it was queued: ${path}`);
     return path;
   });
+  const trash = (path: string) => Bun.spawnSync(["/usr/bin/trash", "--stopOnError", path], { stdout: "ignore", stderr: "pipe" });
   const moved: string[] = [];
   for (const path of paths) {
-    const result = Bun.spawnSync(["/usr/bin/trash", "--stopOnError", path], { stdout: "ignore", stderr: "pipe" });
+    let result = trash(path);
+    if (result.exitCode !== 0 && existsSync(path)) {
+      // Synced iCloud files without a com.apple.macl label refuse the Trash (Cocoa error 513)
+      // until a process with Full Disk Access renames them once; retries alone keep failing.
+      const temp = `${path}.wf-trash`;
+      if (existsSync(temp)) throw new Error(`Trash retry blocked, temporary name exists: ${temp}`);
+      renameSync(path, temp);
+      renameSync(temp, path);
+      result = trash(path);
+    }
     if (result.exitCode !== 0 || existsSync(path)) {
       throw new Error(`Trash failed after ${moved.length} of ${paths.length} moves (exit ${result.exitCode}): ${path} ${result.stderr.toString().trim().slice(-200)}`);
     }
