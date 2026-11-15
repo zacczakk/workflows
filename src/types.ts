@@ -59,6 +59,7 @@ export interface Config {
     default_timeout?: number;
     network_host: string;
     network_wait: number;
+    trash_roots: string[];
   };
   workflows: Record<string, Workflow>;
   schedules: Record<string, ScheduleDef>;

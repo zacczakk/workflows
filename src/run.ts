@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { lookup } from "node:dns/promises";
 import { homedir } from "node:os";
 import { resolve } from "node:path";
@@ -8,6 +8,7 @@ import { createSession, interruptSession, sessionOutcome } from "./opencode";
 import { prepareBacklog, commitBacklog } from "./backlog";
 import { descendants, signalProcesses } from "./process";
 import { notifyFailure } from "./notify";
+import { applyTrashRequests } from "./trash";
 
 export function localDate(): string {
   const now = new Date();
@@ -101,6 +102,7 @@ async function runWorkflow(cfg: Config, root: string, name: string, wf: Workflow
   let children: number[] = [];
   const outputs = (wf.outputs ?? []).map((path) => outputPath(root, path, date));
   const styleBefore = name === "vault-knowledge-distillation" ? snapshotStyle() : undefined;
+  const trashFile = resolve(directory, `${name}.trash`);
   const terminate = () => {
     if (!proc) return;
     children = descendants(proc.pid);
@@ -112,7 +114,8 @@ async function runWorkflow(cfg: Config, root: string, name: string, wf: Workflow
   process.prependListener("SIGINT", interrupt);
   try {
     console.log(`\n> running ${name} (${wf.type})`);
-    const env = { ...process.env, WF_RUN_DATE: date, WF_ARCHIVE_HEALTHY: archiveHealthy() ? "1" : "0", WF_ROOT: root, WF_STATE_DIR: directory };
+    rmSync(trashFile, { force: true });
+    const env = { ...process.env, WF_RUN_DATE: date, WF_ARCHIVE_HEALTHY: archiveHealthy() ? "1" : "0", WF_ROOT: root, WF_STATE_DIR: directory, WF_TRASH_FILE: trashFile };
     if (name === "vault-consolidation" && env.WF_ARCHIVE_HEALTHY !== "1") throw new Error("Consolidation paused: complete archive export and indexes first");
     const selection = name === "vault-backlog-triage" ? prepareBacklog(directory, date) : undefined;
     let args: string[];
@@ -122,7 +125,7 @@ async function runWorkflow(cfg: Config, root: string, name: string, wf: Workflow
       const prompt = readFileSync(resolve(root, wf.prompt), "utf8");
       args = ["opencode", "run", "--session", sessionId];
       if (wf.model) args.push("-m", wf.model);
-      args.push(`Run date: ${date}. Archive cleanup authorized: ${env.WF_ARCHIVE_HEALTHY === "1"}. Use this date for all reports. Workflow state directory: ${directory}.${selection ? ` Backlog selection file: ${resolve(directory, "backlog-selection.json")}.` : ""} Read supplied paths exactly; shared-server shells may not inherit WF environment variables. Required outputs: ${outputs.join(", ") || "none"}. ${env.WF_ARCHIVE_HEALTHY !== "1" ? "Retain all session notes; archive health is unproven." : ""}\n\n${prompt}`);
+      args.push(`Run date: ${date}. Archive cleanup authorized: ${env.WF_ARCHIVE_HEALTHY === "1"}. Use this date for all reports. Workflow state directory: ${directory}. Trash request file: ${trashFile}; never run trash on vault files yourself, append \`shasum -a 256 <absolute path>\` lines there and the runner moves them to the Trash after this session succeeds.${selection ? ` Backlog selection file: ${resolve(directory, "backlog-selection.json")}.` : ""} Read supplied paths exactly; shared-server shells may not inherit WF environment variables. Required outputs: ${outputs.join(", ") || "none"}. ${env.WF_ARCHIVE_HEALTHY !== "1" ? "Retain all session notes; archive health is unproven." : ""}\n\n${prompt}`);
       console.log(`session ${sessionId} model ${wf.model}`);
     } else {
       if (!wf.script) throw new Error("Missing script path");
@@ -146,6 +149,16 @@ async function runWorkflow(cfg: Config, root: string, name: string, wf: Workflow
       code = 0;
     }
     if (code === 0) {
+      try {
+        applyTrashRequests(trashFile, cfg.meta.trash_roots.map((path) => outputPath(root, path, date)));
+      } catch (error) {
+        if (name === "vault-report-maintenance") {
+          for (const path of outputs.filter((path) => existsSync(path))) {
+            writeFileSync(path, readFileSync(path, "utf8").replace(/^retention_status: complete(\r?)$/m, "retention_status: partial$1"));
+          }
+        }
+        throw error;
+      }
       for (const path of outputs) {
         if (!existsSync(path) || statSync(path).mtimeMs < started || statSync(path).size === 0) throw new Error(`Required output missing or stale: ${path}`);
         if (name === "vault-report-maintenance") {

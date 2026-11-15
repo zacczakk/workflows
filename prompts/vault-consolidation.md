@@ -129,7 +129,7 @@ Delete session notes that have served their purpose:
 
 **Delete ONLY when the archive safety gate passes and `consolidated: true` with `consolidated_at` older than 2 days.** Missing timestamp means retain. Never delete notes consolidated during this run.
 
-For each deletion: use `trash ~/Vaults/Memory/sessions/{file}` and log it in the consolidation report.
+For each deletion: queue it with `shasum -a 256 ~/Vaults/Memory/sessions/{file} >> <trash request file>` and log it in the consolidation report. The runner moves queued files to the Trash after the session.
 
 Do NOT delete any session note that is:
 - `consolidated: true` but consolidated less than 2 days ago.

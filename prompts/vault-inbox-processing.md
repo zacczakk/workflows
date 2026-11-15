@@ -14,7 +14,7 @@ The Knowledge vault is at `~/Vaults/Knowledge/`.
   - List: `Read` tool on `~/Vaults/Knowledge/01_inbox/`
   - Read: `Read` tool on `~/Vaults/Knowledge/{path}`
   - Create: `Write` tool to `~/Vaults/Knowledge/{path}`
-  - Delete: `bash trash ~/Vaults/Knowledge/{path}`
+  - Delete: `shasum -a 256 ~/Vaults/Knowledge/{path} >> <trash request file>`; the runner moves queued files to the Trash after the session
   - Search: `Grep` tool on `~/Vaults/Knowledge/`
 - **Tweet extraction:** use `bird read <url>` (or `bird thread <url>` for threads) for `x.com`/`twitter.com` URLs. Auth via env vars (`AUTH_TOKEN`, `CT0`). If bird fails (expired cookies, rate limit), fall back to Tavily search with the tweet ID.
 - Never silently skip the inbox. If listing fails, retry with the fallback method.
@@ -96,7 +96,7 @@ The Knowledge vault is at `~/Vaults/Knowledge/`.
    j. **Create enriched note in backlog** (non-project items only):
        Write `~/Vaults/Knowledge/02_backlog/{kebab-name}.md` directly with the required frontmatter, summary, research, references, and task sections.
 
-    k. **Verify every destination was written and re-read successfully**, including original source URL/text and all split topics. Only then use `trash ~/Vaults/Knowledge/01_inbox/{file}`. If enrichment or any write fails, retain the original and report the item incomplete.
+    k. **Verify every destination was written and re-read successfully**, including original source URL/text and all split topics. Only then queue `~/Vaults/Knowledge/01_inbox/{file}` for deletion in the trash request file. If enrichment or any write fails, retain the original and report the item incomplete.
 
 3. **Print summary** when done:
    ```

@@ -80,6 +80,8 @@ export function validateConfig(parsed: unknown): Config {
     throw new ConfigError("meta", "'network_wait' must be a non-negative integer (seconds)");
   }
 
+  const trashRoots = optionalStrings(metaRaw.trash_roots, "meta.trash_roots") ?? ["~/Vaults/Knowledge", "~/Vaults/Memory"];
+
   const meta = {
     label_prefix: requireString(metaRaw, "label_prefix", "meta"),
     log_dir: requireString(metaRaw, "log_dir", "meta"),
@@ -88,6 +90,7 @@ export function validateConfig(parsed: unknown): Config {
     default_timeout: typeof defaultTimeout === "number" ? defaultTimeout : undefined,
     network_host: networkHost,
     network_wait: networkWait,
+    trash_roots: trashRoots,
   };
 
   // ── Workflows ───────────────────────────────────────────────────

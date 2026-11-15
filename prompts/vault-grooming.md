@@ -131,7 +131,7 @@ For each match:
 1. Read the backlog note and the matching project note.
 2. Append task line(s) to the project's `## Tasks` section.
 3. Preserve URL/summary/context as a brief entry in the project note.
-4. Delete the backlog note with `trash ~/Vaults/Knowledge/02_backlog/{file}`.
+4. Queue the backlog note for deletion with `shasum -a 256 ~/Vaults/Knowledge/02_backlog/{file} >> <trash request file>`.
 5. Log in the grooming report.
 
 ### Phase 6: Index/parent note validation
